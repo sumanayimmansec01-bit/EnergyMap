@@ -118,6 +118,10 @@
   <!-- LOG -->
   <section id="tab-log" aria-label="บันทึก">
     <h1>⚡ วันนี้พลังเป็นยังไง</h1>
+    <div class="card" id="backup-banner" role="status" hidden>
+      <div id="backup-text"></div>
+      <div class="row" style="margin-top:8px"><button class="btn primary grow" id="bk-now">⬇ สำรองตอนนี้</button><button class="btn grow" id="bk-later">ไว้ทีหลัง</button></div>
+    </div>
     <div class="card" id="today"></div>
     <h2>แตะกิจกรรมที่เพิ่งทำ</h2>
     <div class="grid" id="grid"></div>
@@ -161,6 +165,8 @@
     <div class="card">
       <h2>ข้อมูล</h2>
       <p class="muted" style="margin-top:0">ข้อมูลเก็บในเครื่องนี้เท่านั้น ควรสำรองไว้เป็นระยะ</p>
+      <p class="muted" id="lastbk"></p>
+      <p class="muted" id="persist"></p>
       <div class="row wrap">
         <button class="btn" id="export">⬇ สำรองข้อมูล</button>
         <button class="btn" id="import">⬆ นำเข้า</button>
@@ -309,6 +315,7 @@ function renderLog() {
   $("entries").innerHTML = list.length
     ? [...list].sort((x, y) => y.ts - x.ts).map((x) => `<div class="entry"><span class="em">${esc(x.emoji)}</span><div class="grow"><div>${esc(x.name)}</div><div class="muted">${fmtTime(x.ts)}${x.min ? ` · ${x.min} นาที` : ""}${x.note ? ` · ${esc(x.note)}` : ""}</div></div><span class="chip ${x.fx > 0 ? "b" : "d"}">${sgn(pts(x))}</span><button class="icon-btn" data-del="${esc(x.id)}" aria-label="ลบ ${esc(x.name)}">✕</button></div>`).join("")
     : `<div class="muted">ยังไม่มี — แตะกิจกรรมด้านบนได้เลย</div>`;
+  renderBanner();
 }
 
 /* ---------- render: insights ---------- */
@@ -350,6 +357,8 @@ function renderStats() {
 
 /* ---------- render: manage ---------- */
 function renderMore() {
+  const m = meta();
+  $("lastbk").textContent = m.backup ? "สำรองล่าสุด: " + fmtDate(new Date(m.backup), { day: "numeric", month: "short", year: "numeric" }) : "ยังไม่เคยสำรองข้อมูล";
   $("actlist").innerHTML = db.acts.map((a) => `<div class="entry"><span class="em">${esc(a.emoji)}</span><div class="grow">${esc(a.name)}</div><span class="chip ${a.fx > 0 ? "b" : "d"}">${FX[a.fx][0]}</span><button class="icon-btn" data-rm="${esc(a.id)}" aria-label="ลบกิจกรรม ${esc(a.name)}">✕</button></div>`).join("") || `<div class="muted">ไม่มีกิจกรรม</div>`;
 }
 
@@ -420,12 +429,36 @@ document.addEventListener("click", (e) => {
 
 /* ---------- backup ---------- */
 const say = (m) => ($("msg").textContent = m);
-$("export").onclick = () => {
+/* backup reminder: nudge when 7 days pass without a backup (counted from the last backup, or first use) */
+const META = KEY + ":meta", WEEK = 7 * 864e5;
+function meta() { try { return JSON.parse(localStorage.getItem(META)) || {}; } catch { return {}; } }
+function setMeta(o) { try { localStorage.setItem(META, JSON.stringify({ ...meta(), ...o })); } catch {} }
+if (!meta().first) setMeta({ first: Date.now() });
+function renderBanner() {
+  const m = meta(), now = Date.now(), base = m.backup || m.first || now;
+  const due = db.entries.length > 0 && !(m.snooze && now < m.snooze) && now - base >= WEEK;
+  $("backup-banner").hidden = !due;
+  if (due) {
+    const days = Math.floor((now - base) / 864e5);
+    $("backup-text").textContent = m.backup ? `🛟 ผ่านมา ${days} วันแล้วตั้งแต่สำรองข้อมูลครั้งล่าสุด` : `🛟 ใช้งานมา ${days} วันแล้วแต่ยังไม่เคยสำรองข้อมูล`;
+  }
+}
+function doExport() {
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([JSON.stringify(db, null, 2)], { type: "application/json" }));
   a.download = `energy-${localInput(Date.now()).slice(0, 10)}.json`; a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000); say("สำรองข้อมูลแล้ว");
-};
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  setMeta({ backup: Date.now(), snooze: 0 }); say("สำรองข้อมูลแล้ว"); renderBanner(); renderMore();
+}
+$("export").onclick = doExport;
+$("bk-now").onclick = doExport;
+$("bk-later").onclick = () => { setMeta({ snooze: Date.now() + 864e5 }); renderBanner(); };
+async function askPersist() {
+  let ok = false;
+  try { if (navigator.storage && navigator.storage.persist) ok = (await navigator.storage.persisted()) || (await navigator.storage.persist()); } catch {}
+  $("persist").textContent = ok ? "🔒 เบราว์เซอร์รับปากเก็บข้อมูลไว้ถาวรแล้ว" : "⚠️ เบราว์เซอร์ยังไม่ยืนยันการเก็บถาวร ควรสำรองข้อมูลเป็นระยะ";
+}
+askPersist();
 $("import").onclick = () => $("file").click();
 $("file").onchange = async (e) => {
   const f = e.target.files[0]; if (!f) return;

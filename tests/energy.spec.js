@@ -5,16 +5,17 @@ const KEY = "energy-map:v1";
 const NOW = new Date("2026-10-18T09:00:00+07:00"); // a Sunday
 
 // Seed a few days of history on the first load only, so reload tests see what the app saved.
-async function open(page, entries) {
+async function open(page, entries, meta) {
   await page.clock.install({ time: NOW });
-  await page.addInitScript(({ KEY, entries }) => {
+  await page.addInitScript(({ KEY, entries, meta }) => {
     if (sessionStorage.getItem("seeded")) return;
     sessionStorage.setItem("seeded", "1");
+    if (meta) localStorage.setItem(KEY + ":meta", JSON.stringify(meta));
     if (entries) {
       const acts = [{ id: "x", emoji: "🚶", name: "เดิน", fx: 2 }];
       localStorage.setItem(KEY, JSON.stringify({ entries, acts }));
     }
-  }, { KEY, entries });
+  }, { KEY, entries, meta });
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/index.html");
@@ -112,4 +113,64 @@ test("no horizontal scroll on a phone", async ({ page }) => {
   await open(page);
   const w = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
   expect(w[0]).toBeLessThanOrEqual(w[1]);
+});
+
+const DAY = 864e5, ago = (d) => NOW.getTime() - d * DAY;
+const one = [at("2026-10-18T07:00:00+07:00", "เดิน", "🚶", 2)];
+
+test("backup reminder: appears after 7 days without a backup, counted from first use", async ({ page }) => {
+  await open(page, one, { first: ago(8) });
+  await expect(page.locator("#backup-banner")).toBeVisible();
+  await expect(page.locator("#backup-text")).toContainText("8 วัน");
+  await expect(page.locator("#backup-text")).toContainText("ยังไม่เคยสำรอง");
+});
+
+test("backup reminder: stays hidden when new, recently backed up, or there is no data", async ({ page }) => {
+  await open(page, one, { first: ago(3) });
+  await expect(page.locator("#backup-banner")).toBeHidden();
+  await page.goto("about:blank");
+  const p2 = await page.context().newPage();
+  await p2.clock.install({ time: NOW });
+  await p2.addInitScript(({ KEY, m }) => { localStorage.setItem(KEY + ":meta", JSON.stringify(m)); }, { KEY, m: { first: ago(30), backup: ago(2) } });
+  await p2.goto("/index.html");
+  await expect(p2.locator("#backup-banner")).toBeHidden();
+  const p3 = await page.context().newPage();
+  await p3.clock.install({ time: NOW });
+  await p3.addInitScript(({ KEY, m }) => {
+    localStorage.setItem(KEY, JSON.stringify({ entries: [], acts: [] })); // the shared context still holds the earlier page's data
+    localStorage.setItem(KEY + ":meta", JSON.stringify(m));
+  }, { KEY, m: { first: ago(30) } });
+  await p3.goto("/index.html");
+  await expect(p3.locator("#backup-banner")).toBeHidden(); // nothing to lose yet
+});
+
+test("backup reminder: 'later' snoozes it and survives a reload", async ({ page }) => {
+  await open(page, one, { first: ago(8) });
+  await page.getByRole("button", { name: "ไว้ทีหลัง" }).click();
+  await expect(page.locator("#backup-banner")).toBeHidden();
+  await page.reload();
+  await expect(page.locator("#backup-banner")).toBeHidden();
+});
+
+test("backup reminder: backing up downloads the file and clears the reminder", async ({ page }) => {
+  await open(page, one, { first: ago(8) });
+  const [dl] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: /สำรองตอนนี้/ }).click()]);
+  expect(dl.suggestedFilename()).toMatch(/^energy-\d{4}-\d{2}-\d{2}\.json$/);
+  await expect(page.locator("#backup-banner")).toBeHidden();
+  await page.reload();
+  await expect(page.locator("#backup-banner")).toBeHidden();
+  await page.getByRole("navigation").getByRole("button", { name: /จัดการ/ }).click();
+  await expect(page.locator("#lastbk")).toContainText("สำรองล่าสุด");
+});
+
+test("persistent storage is requested and its status is shown", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__persistAsked = 0;
+    StorageManager.prototype.persisted = async () => false;
+    StorageManager.prototype.persist = async () => { window.__persistAsked++; return true; };
+  });
+  await open(page);
+  await page.getByRole("navigation").getByRole("button", { name: /จัดการ/ }).click();
+  await expect(page.locator("#persist")).toContainText("รับปากเก็บข้อมูลไว้ถาวร");
+  expect(await page.evaluate(() => window.__persistAsked)).toBe(1);
 });
