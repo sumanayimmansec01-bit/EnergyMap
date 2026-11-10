@@ -313,12 +313,43 @@ test.describe("catch the ball", () => {
     await page.mouse.move(b.x + b.width * 0.5, b.y + b.height * 0.5);
     await page.mouse.down();
     await page.mouse.move(b.x + b.width * 0.8, b.y + b.height * 0.5);
-    expect(Math.round(await x())).toBe(240);                              // 80 % of 300
+    expect(Math.round(await x())).toBe(240);                              // the finger moved 30 % of the board, so the basket moved 90 units
     await page.mouse.move(b.x + b.width * 0.01, b.y + b.height * 0.5);    // far left is clamped to half the basket
     await page.mouse.up();
-    expect(await x()).toBe(35);
+    expect(await x()).toBe(40);
     await page.mouse.move(b.x + b.width * 0.9, b.y + b.height * 0.5);     // a hover without pressing does nothing
-    expect(await x()).toBe(35);
+    expect(await x()).toBe(40);
+  });
+
+  test("dragging the board is relative: touching far from the basket does not make it jump", async ({ page }) => {
+    await open(page, "/index.html?game=ball&seed=7");
+    const x = () => page.evaluate(() => window.Games._test.get("ball").x);
+    const b = await page.locator("#ballc").boundingBox();
+    await page.mouse.move(b.x + b.width * 0.9, b.y + b.height * 0.1);     // the top right corner, nowhere near the basket
+    await page.mouse.down();
+    expect(await x()).toBe(150);                                          // still where it was
+    await page.mouse.move(b.x + b.width * 0.8, b.y + b.height * 0.1);    // 10 % to the left = 30 units
+    expect(Math.round(await x())).toBe(120);
+    await page.mouse.up();
+  });
+
+  test("the slider strip under the board moves the basket, and its thumb follows the basket", async ({ page }) => {
+    await open(page, "/index.html?game=ball&seed=7");
+    const x = () => page.evaluate(() => window.Games._test.get("ball").x);
+    const pad = await page.locator("#ballpad").boundingBox();
+    const y = pad.y + pad.height / 2;
+    await page.mouse.move(pad.x + 22, y); await page.mouse.down();       // the far left end of the strip
+    expect(await x()).toBe(40);
+    await page.mouse.move(pad.x + pad.width / 2, y);
+    expect(Math.round(await x())).toBe(150);
+    await page.mouse.move(pad.x + pad.width + 40, y);                    // past the right end: held at the edge
+    expect(await x()).toBe(260);
+    await page.mouse.up();
+    await expect(page.locator("#ballpad")).toHaveAttribute("aria-valuenow", "100");
+    const thumb = await page.locator("#ballthumb").boundingBox();
+    expect(Math.round(thumb.x + thumb.width)).toBeGreaterThanOrEqual(Math.round(pad.x + pad.width - 6));   // the thumb sits at the right end
+    await page.getByRole("button", { name: "เลื่อนตะกร้าไปซ้าย" }).click();
+    await expect(page.locator("#ballpad")).not.toHaveAttribute("aria-valuenow", "100");
   });
 });
 
@@ -416,4 +447,14 @@ test.describe("mahjong match", () => {
     await page.getByRole("button", { name: /ใบ้/ }).click();
     await expect(page.locator('.tile[data-hint="1"]')).toHaveCount(2);
   });
+});
+
+test("catch the ball: the board and its slider both fit above the menu bar on a phone", async ({ page }) => {
+  await open(page, "/index.html?game=ball&seed=7");
+  const nv = await page.getByRole("navigation").boundingBox();
+  const pad = await page.locator("#ballpad").boundingBox();
+  const cv = await page.locator("#ballc").boundingBox();
+  expect(pad.y + pad.height).toBeLessThanOrEqual(nv.y);
+  expect(cv.y).toBeGreaterThanOrEqual(0);
+  expect(cv.width).toBeGreaterThanOrEqual(160);
 });

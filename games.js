@@ -106,7 +106,7 @@
 
   Object.assign(L, {
     BW: 300, BH: 400, PY: 372, PH: 14, BALL_MS: 45000, MJ_LAYOUT,
-    ballNew: () => ({ t: L.BALL_MS, score: 0, caught: 0, x: 150, pw: 70, items: [], spawn: 400, running: false, over: false, started: false, counted: false, logged: false }),
+    ballNew: () => ({ t: L.BALL_MS, score: 0, caught: 0, x: 150, pw: 80, items: [], spawn: 400, running: false, over: false, started: false, counted: false, logged: false }),
     // one fixed 33 ms step: balls fall, the basket catches them, stars +3, bombs -2, the round ends at 45 s
     ballStep(s, dt) {
       if (!s.running || s.over) return;
@@ -332,8 +332,8 @@
         const s = S.ball;
         return {
           status: ballStatus(s),
-          hint: "ลากนิ้วบนกระดาน (หรือกด ◀ ▶) เพื่อเลื่อนตะกร้ารับลูกบอล ⭐ ได้ +3 แต่ 💣 โดน −2",
-          body: `<canvas id="ballc" class="ballc" width="600" height="800" role="img" aria-label="กระดานรับลูกบอล"></canvas><div class="arrows two"><button class="btn" data-g="bm" data-d="-1" aria-label="เลื่อนตะกร้าไปซ้าย">◀</button><button class="btn" data-g="bm" data-d="1" aria-label="เลื่อนตะกร้าไปขวา">▶</button></div>`,
+          hint: "ลากนิ้วบนแถบด้านล่างเพื่อเลื่อนตะกร้า (หรือลากตรงไหนก็ได้บนกระดาน) · ⭐ +3 · 💣 −2",
+          body: `<canvas id="ballc" class="ballc" width="600" height="800" role="img" aria-label="กระดานรับลูกบอล"></canvas><div class="ballctl"><button class="btn" data-g="bm" data-d="-1" aria-label="เลื่อนตะกร้าไปซ้าย">◀</button><div id="ballpad" class="ballpad" role="slider" aria-label="แถบเลื่อนตะกร้า" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"><span id="ballthumb" class="thumb"></span></div><button class="btn" data-g="bm" data-d="1" aria-label="เลื่อนตะกร้าไปขวา">▶</button></div>`,
           tools: s.over ? "" : `<button class="btn primary" data-g="toggle">${s.running ? "⏸ พัก" : s.started ? "▶ ต่อ" : "▶ เริ่ม"}</button>`,
           result: s.over ? { msg: `⏱ หมดเวลา! ได้ ${s.score} คะแนน (รับ ${s.caught} ลูก)`, extra: `<button class="btn primary" data-g="new">เล่นอีกรอบ</button>` } : null,
         };
@@ -413,6 +413,12 @@
     const cv = document.getElementById("ballc"), s = S.ball; if (!cv || !s) return;
     const ctx = cv.getContext("2d"), accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#1f5fd0";
     ctx.setTransform(2, 0, 0, 2, 0, 0); ctx.clearRect(0, 0, L.BW, L.BH);
+    ctx.fillStyle = "rgba(255,255,255,.35)"; ctx.fillRect(s.x - s.pw / 2, 0, s.pw, L.PY);     // the catch lane: what falls in here is caught
+    ctx.strokeStyle = "rgba(16,40,92,.28)"; ctx.lineWidth = 1.5; ctx.setLineDash([5, 5]);
+    ctx.beginPath(); ctx.moveTo(s.x - s.pw / 2, 0); ctx.lineTo(s.x - s.pw / 2, L.PY); ctx.moveTo(s.x + s.pw / 2, 0); ctx.lineTo(s.x + s.pw / 2, L.PY); ctx.stroke(); ctx.setLineDash([]);
+    const f = (s.x - s.pw / 2) / (L.BW - s.pw), th = document.getElementById("ballthumb"), pad = document.getElementById("ballpad");
+    if (th) th.style.left = `calc((100% - 44px) * ${f})`;
+    if (pad) pad.setAttribute("aria-valuenow", String(Math.round(f * 100)));
     ctx.fillStyle = "#2e9e3f"; ctx.fillRect(0, L.BH - 12, L.BW, 12);
     ctx.fillStyle = "#7ad06a"; ctx.fillRect(0, L.BH - 12, L.BW, 4);
     ctx.textAlign = "center"; ctx.font = "26px serif";
@@ -496,14 +502,25 @@
     if (view === "merge") { e.preventDefault(); G.merge.move(d); render(); }
     else if (view === "ball" && (d === "L" || d === "R")) { e.preventDefault(); S.ball.x = L.clampX(S.ball, S.ball.x + (d === "L" ? -28 : 28)); drawBall(); }
   }
-  // dragging on the ball board moves the basket (pointer capture keeps following the finger past the edge)
+  // The board is dragged relatively (the basket moves by the distance the finger moves, so touch anywhere, away from the basket);
+  // the strip under the board is a slider that maps the finger's position onto the basket. Either way the finger stays off the catch lane.
+  let drag = null;
   function onBallPointer(e) {
-    const cv = e.target, s = S.ball;
-    if (!s || !cv || cv.id !== "ballc") return;
-    if (e.type === "pointerdown") { try { cv.setPointerCapture(e.pointerId); } catch {} }
+    if (e.type === "pointerup" || e.type === "pointercancel") { drag = null; return; }
+    const s = S.ball, t = e.target;
+    if (!s || !t || !t.closest) return;
+    const cv = t.closest("#ballc"), pad = t.closest("#ballpad");
+    if (!cv && !pad) return;
+    if (e.type === "pointerdown") { try { (cv || pad).setPointerCapture(e.pointerId); } catch {} drag = cv ? { px: e.clientX, x0: s.x } : null; }
     else if (!(e.buttons & 1)) return;
-    const b = cv.getBoundingClientRect();
-    s.x = L.clampX(s, ((e.clientX - b.left) / b.width) * L.BW); drawBall();
+    if (pad) {
+      const b = pad.getBoundingClientRect(), f = Math.max(0, Math.min(1, (e.clientX - b.left - 22) / (b.width - 44)));
+      s.x = s.pw / 2 + f * (L.BW - s.pw);
+    } else if (drag) {
+      const b = cv.getBoundingClientRect();
+      s.x = L.clampX(s, drag.x0 + ((e.clientX - drag.px) / b.width) * L.BW);
+    }
+    drawBall();
   }
 
   const api = {
@@ -526,6 +543,8 @@
     r.addEventListener("pointerup", onUp);
     r.addEventListener("pointerdown", onBallPointer);
     r.addEventListener("pointermove", onBallPointer);
+    r.addEventListener("pointerup", onBallPointer);
+    r.addEventListener("pointercancel", onBallPointer);
     document.addEventListener("keydown", onKey);
   });
 })();
