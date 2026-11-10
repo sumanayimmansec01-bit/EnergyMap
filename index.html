@@ -194,6 +194,43 @@
   @keyframes sprout-sway { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
   @keyframes pop { 0% { transform: scale(.5) rotate(-14deg); } 60% { transform: scale(1.14) rotate(6deg); } 100% { transform: none; } }
   @media (prefers-reduced-motion: reduce) { #garden, .sprout::after, #logo img { animation: none !important; } }
+
+  /* ---- games ---- */
+  .gshort { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+  .gshort button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 64px; padding: 6px 2px;
+    background: var(--surface); border: 2px solid var(--line); border-radius: 12px; font-size: .75rem; font-weight: 700; }
+  .gshort button span { font-size: 1.5rem; line-height: 1.1; }
+  .gmenu { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .gcard { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-height: 160px; padding: 12px; text-align: left;
+    background: var(--surface); border: 2px solid var(--line); border-radius: 14px; }
+  .gcard .em { font-size: 2.2rem; line-height: 1.1; } .gcard b { font-size: .95rem; line-height: 1.3; } .gcard .muted { font-size: .78rem; line-height: 1.35; }
+  .gcard .gst { margin-top: auto; font-size: .78rem; font-weight: 700; color: var(--boost); }
+  .gbar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .gpill { flex: 1; text-align: center; padding: 8px 10px; background: var(--surface); border: 2px solid var(--line); border-radius: 999px; font-weight: 700; font-size: .9rem; }
+  .gboard { padding: 14px 10px; } .ghint { margin: 12px 0 0; text-align: center; }
+  .gres b { display: block; font-size: 1.05rem; }
+  .gres, .gboard { margin-bottom: 12px; }
+  .row .btn:disabled, .gres .btn:disabled { opacity: .55; cursor: default; }
+  .pots { display: flex; flex-wrap: wrap; gap: 14px 10px; justify-content: center; padding-top: 12px; }
+  .pot { display: flex; flex-direction: column-reverse; justify-content: flex-start; width: 54px; height: 152px; padding: 2px 0; background: var(--bg);
+    border: 3px solid var(--line); border-radius: 6px 6px 22px 22px; transition: transform .12s; }
+  .pot span { display: block; height: 36px; line-height: 36px; font-size: 1.6rem; text-align: center; }
+  .pot[aria-pressed="true"] { transform: translateY(-12px); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent); }
+  .mem { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .mc { aspect-ratio: 1; font-size: 2rem; line-height: 1; background: var(--accent-soft); border: 3px solid var(--line); border-radius: 14px; }
+  .mc[data-state="open"] { background: var(--surface); } .mc[data-state="done"] { background: var(--boost-soft); border-color: var(--boost); }
+  .m4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 6px; background: var(--line); border-radius: 14px; touch-action: none; user-select: none; -webkit-user-select: none; }
+  .mt { position: relative; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 1.9rem; border-radius: 10px; background: rgba(255,255,255,.28); }
+  .mt:not([data-l="0"]) { background: var(--surface); } .mt[data-l="7"], .mt[data-l="8"], .mt[data-l="9"] { background: var(--boost-soft); }
+  .mt i { position: absolute; right: 5px; bottom: 2px; font-size: .68rem; font-style: normal; font-weight: 700; color: var(--muted); }
+  .arrows { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; } .arrows .btn { font-size: 1.3rem; padding: 0; }
+  .slidewrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .slideprev { border-radius: 10px; border: 2px solid var(--line); }
+  .s3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: min(100%, 300px); aspect-ratio: 1; padding: 4px; background: var(--line); border-radius: 14px; }
+  .st { position: relative; border: 0; border-radius: 8px; padding: 0; background-image: url(icon.svg); background-size: 300% 300%; background-color: var(--surface); }
+  .st.blank { background: rgba(255,255,255,.2); }
+  .st i { position: absolute; left: 4px; top: 3px; padding: 0 6px; font-size: .72rem; font-style: normal; font-weight: 700; color: #10285c; background: rgba(255,255,255,.85); border-radius: 6px; }
+  @media (prefers-reduced-motion: reduce) { .pot { transition: none; } }
 </style>
 </head>
 <body>
@@ -208,6 +245,8 @@
     <div class="card sprout" id="today"></div>
     <h2>แตะกิจกรรมที่เพิ่งทำ</h2>
     <div class="grid" id="grid"></div>
+    <h2 style="margin-top:16px">🎮 พักสมอง</h2>
+    <div class="gshort" id="gshort"></div>
     <div class="card" style="margin-top:12px">
       <h2>บันทึกวันนี้</h2>
       <div id="entries"></div>
@@ -237,6 +276,9 @@
   </section>
 
   <!-- MORE -->
+  <!-- GAMES (rendered by games.js) -->
+  <section id="tab-games" aria-label="เกม" hidden></section>
+
   <section id="tab-more" aria-label="เพิ่มเติม" hidden>
     <h1>⚙️ จัดการ</h1>
     <div class="card sprout"><h2>🎨 ธีมสี</h2><div class="skins" id="skins" role="group" aria-label="เลือกธีม"></div></div>
@@ -267,6 +309,7 @@
 <nav aria-label="เมนูหลัก"><div class="in">
   <button data-tab="log" aria-current="page"><span>⚡</span>บันทึก</button>
   <button data-tab="stats"><span>📊</span>สรุป</button>
+  <button data-tab="games"><span>🎮</span>เกม</button>
   <button data-tab="more"><span>⚙️</span>จัดการ</button>
 </div></nav>
 
@@ -299,6 +342,7 @@
   </form>
 </dialog>
 
+<script src="games.js"></script>
 <script>
 "use strict";
 const KEY = "energy-map:v1";
@@ -451,13 +495,15 @@ function renderMore() {
 }
 
 /* ---------- tabs ---------- */
+let curTab = "log";
 function show(tab) {
-  for (const t of ["log", "stats", "more"]) $("tab-" + t).hidden = t !== tab;
+  curTab = tab;
+  for (const t of ["log", "stats", "games", "more"]) $("tab-" + t).hidden = t !== tab;
   document.querySelectorAll("nav button").forEach((b) => (b.dataset.tab === tab ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current")));
-  ({ log: renderLog, stats: renderStats, more: renderMore })[tab]();
+  ({ log: renderLog, stats: renderStats, games: () => Games.render(), more: renderMore })[tab]();
   window.scrollTo(0, 0);
 }
-document.querySelector("nav").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) show(b.dataset.tab); });
+document.querySelector("nav").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; if (b.dataset.tab === "games" && curTab === "games") Games.home(); show(b.dataset.tab); });
 $("range").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { st.r = b.dataset.r; st.off = 0; renderStats(); } });
 $("prev").onclick = () => { st.off--; renderStats(); };
 $("next").onclick = () => { if (st.off < 0) { st.off++; renderStats(); } };
@@ -595,6 +641,14 @@ $("skins").addEventListener("click", (e) => {
 applySkin();
 
 renderLog();
+
+/* ---------- games: finishing one can be logged as a boost; ?game=sort|memory|merge|slide opens it directly ---------- */
+Games.show = show;
+Games.onLog = (name) => {
+  db.entries.push({ id: uid(), ts: Date.now(), name: "เล่นเกมผ่อนคลาย", emoji: "🎮", fx: 1, exact: true, min: 0, note: name });
+  save(); renderLog();
+};
+{ const g = new URLSearchParams(location.search).get("game"); if (g && Games.has(g)) Games.open(g); }
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 </script>
 </body>
