@@ -31,7 +31,7 @@ test("logging a booster and a drainer updates today's total", async ({ page }) =
   await expect(page.locator("#today .big")).toHaveText("+2");
 
   await page.getByRole("button", { name: /ประชุมยาว/ }).click();
-  await page.getByRole("button", { name: /^1 ชม\./ }).click(); // 60 min of a -2 activity = -4
+  await page.locator("#score").fill("-4"); // the user sets the score by hand
   await page.getByRole("button", { name: "บันทึก", exact: true }).click();
   await expect(page.locator("#today .big")).toHaveText("−2");
   expect(errors).toEqual([]);
@@ -40,7 +40,7 @@ test("logging a booster and a drainer updates today's total", async ({ page }) =
 test("the user can override the effect of a preset for one entry", async ({ page }) => {
   await open(page);
   await page.getByRole("button", { name: /ประชุมยาว/ }).click();
-  await page.locator("#fx").getByRole("button", { name: /^▲ เติมพลัง$/ }).click();
+  await page.locator("#score").fill("1");
   await page.getByRole("button", { name: "บันทึก", exact: true }).click();
   await expect(page.locator("#today .big")).toHaveText("+1");
 });
@@ -173,4 +173,42 @@ test("persistent storage is requested and its status is shown", async ({ page })
   await page.getByRole("navigation").getByRole("button", { name: /จัดการ/ }).click();
   await expect(page.locator("#persist")).toContainText("รับปากเก็บข้อมูลไว้ถาวร");
   expect(await page.evaluate(() => window.__persistAsked)).toBe(1);
+});
+
+test("score: set by hand from -5 to +5, nudged with the buttons, and never scaled by duration", async ({ page }) => {
+  await open(page);
+  await page.getByRole("button", { name: /ประชุมยาว/ }).click();
+  await expect(page.locator("#score-val")).toHaveText("−2");        // starts at the activity's usual effect
+  await page.getByRole("button", { name: "เพิ่มคะแนน" }).click();
+  await expect(page.locator("#score-val")).toHaveText("−1");
+  await page.locator("#score").fill("5");
+  await page.getByRole("button", { name: "เพิ่มคะแนน" }).click();   // capped at +5
+  await expect(page.locator("#score-val")).toHaveText("+5");
+  await expect(page.locator("#score-hint")).toContainText("เติมพลัง");
+  await page.locator("#score").fill("-3");
+  await page.getByRole("button", { name: /^2 ชม\./ }).click();      // 2 hours must not multiply the score
+  await page.getByRole("button", { name: "บันทึก", exact: true }).click();
+  await expect(page.locator("#today .big")).toHaveText("−3");
+  await expect(page.locator("#entries")).toContainText("120 นาที");
+});
+
+test("score: the same activity can be rushed (negative) or relaxed (positive), and 0 is allowed", async ({ page }) => {
+  await open(page);
+  await page.getByRole("button", { name: /กิจกรรมใหม่/ }).click();
+  await page.locator("#act-name").fill("อาบน้ำ");
+  await page.locator("#act-emoji").fill("🚿");
+  await page.getByRole("button", { name: "เพิ่ม", exact: true }).click();
+  for (const [score, note] of [["-3", "รีบมาก"], ["4", "ไม่มีเวลากดดัน"], ["0", "เฉย ๆ"]]) {
+    await page.getByRole("button", { name: /อาบน้ำ/ }).first().click();
+    await page.locator("#score").fill(score);
+    await page.locator("#note").fill(note);
+    await page.getByRole("button", { name: "บันทึก", exact: true }).click();
+  }
+  await expect(page.locator("#entries .chip.d")).toHaveText("−3");
+  await expect(page.locator("#entries .chip.b")).toHaveText("+4");
+  await expect(page.locator("#entries .chip.n")).toHaveText("0");
+  await expect(page.locator("#today .big")).toHaveText("+1");
+  await page.reload();                                              // persisted with their scores
+  await expect(page.locator("#entries")).toContainText("ไม่มีเวลากดดัน");
+  await expect(page.locator("#today .big")).toHaveText("+1");
 });

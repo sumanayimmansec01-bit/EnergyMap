@@ -109,6 +109,8 @@
   .chips button { min-width: 64px; }
   .chips button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
   label { display: block; font-weight: 600; font-size: .9rem; }
+  input[type=range] { min-height: 44px; margin: 6px 0; accent-color: var(--accent); }
+  .chip.n { background: var(--line); color: var(--muted); }
   input[type=text], input[type=datetime-local], textarea, select { width: 100%; min-height: 44px; padding: 8px 12px; margin: 6px 0 12px; font: inherit;
     color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; }
 </style>
@@ -187,9 +189,10 @@
 <dialog id="log-dlg" aria-labelledby="log-title">
   <form method="dialog" id="log-form">
     <h2 id="log-title"></h2>
-    <div id="fx-label" class="muted">กิจกรรมนี้ทำให้รู้สึกอย่างไร</div>
-    <div class="fx" id="fx" role="group" aria-labelledby="fx-label"></div>
-    <div class="muted">ใช้เวลานานเท่าไร</div>
+    <label for="score">คะแนนครั้งนี้ <b id="score-val"></b> <span class="muted" id="score-hint"></span></label>
+    <div class="row"><button type="button" class="icon-btn" id="sc-minus" aria-label="ลดคะแนน">−</button><input type="range" id="score" min="-5" max="5" step="1" class="grow"><button type="button" class="icon-btn" id="sc-plus" aria-label="เพิ่มคะแนน">＋</button></div>
+    <div class="row muted" style="font-size:.75rem;margin-bottom:12px"><span>▼ −5 เสียพลังมาก</span><span class="grow"></span><span>เติมพลังมาก +5 ▲</span></div>
+    <div class="muted">ใช้เวลานานเท่าไร (เก็บไว้ดูเฉย ๆ ไม่คูณคะแนน)</div>
     <div class="chips" id="mins" role="group" aria-label="ระยะเวลา"></div>
     <label for="when">เมื่อไร</label>
     <input type="datetime-local" id="when">
@@ -234,7 +237,8 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const $ = (id) => document.getElementById(id);
 // A 30-minute activity counts once; longer or shorter ones scale. No duration counts as 30.
-const pts = (e) => e.fx * ((e.min || 30) / 30);
+// Entries logged with a hand-set score (exact) count as typed; older ones scale by duration.
+const pts = (e) => (e.exact ? e.fx : e.fx * ((e.min || 30) / 30));
 const r1 = (n) => Math.round(n * 10) / 10;
 const sgn = (n) => (n > 0 ? "+" : n < 0 ? "−" : "") + Math.abs(r1(n));
 
@@ -313,7 +317,7 @@ function renderLog() {
   $("grid").innerHTML = db.acts.map((a) => `<button class="act ${a.fx > 0 ? "b" : "d"}" data-act="${esc(a.id)}"><span class="em">${esc(a.emoji)}</span><span><span class="nm">${esc(a.name)}</span><br><span class="sub ${a.fx > 0 ? "pos" : "neg"}">${FX[a.fx][0]} ${FX[a.fx][1]}</span></span></button>`).join("")
     + `<button class="act add" id="grid-add">＋ กิจกรรมใหม่</button>`;
   $("entries").innerHTML = list.length
-    ? [...list].sort((x, y) => y.ts - x.ts).map((x) => `<div class="entry"><span class="em">${esc(x.emoji)}</span><div class="grow"><div>${esc(x.name)}</div><div class="muted">${fmtTime(x.ts)}${x.min ? ` · ${x.min} นาที` : ""}${x.note ? ` · ${esc(x.note)}` : ""}</div></div><span class="chip ${x.fx > 0 ? "b" : "d"}">${sgn(pts(x))}</span><button class="icon-btn" data-del="${esc(x.id)}" aria-label="ลบ ${esc(x.name)}">✕</button></div>`).join("")
+    ? [...list].sort((x, y) => y.ts - x.ts).map((x) => `<div class="entry"><span class="em">${esc(x.emoji)}</span><div class="grow"><div>${esc(x.name)}</div><div class="muted">${fmtTime(x.ts)}${x.min ? ` · ${x.min} นาที` : ""}${x.note ? ` · ${esc(x.note)}` : ""}</div></div><span class="chip ${pts(x) > 0 ? "b" : pts(x) < 0 ? "d" : "n"}">${sgn(pts(x))}</span><button class="icon-btn" data-del="${esc(x.id)}" aria-label="ลบ ${esc(x.name)}">✕</button></div>`).join("")
     : `<div class="muted">ยังไม่มี — แตะกิจกรรมด้านบนได้เลย</div>`;
   renderBanner();
 }
@@ -384,10 +388,19 @@ function fxPicker(el, get, set) {
 
 /* ---------- log dialog ---------- */
 let cur = null;
+const HINT = ["เฉย ๆ", "นิดหน่อย", "พอสมควร", "ค่อนข้างมาก", "มาก", "มากที่สุด"];
+function paintScore() {
+  const v = +$("score").value;
+  $("score-val").textContent = sgn(v);
+  $("score-hint").textContent = v === 0 ? "· เฉย ๆ" : `· ${v > 0 ? "เติมพลัง" : "เสียพลัง"}${HINT[Math.abs(v)]}`;
+}
+$("score").oninput = paintScore;
+$("sc-minus").onclick = () => { $("score").value = Math.max(-5, +$("score").value - 1); paintScore(); };
+$("sc-plus").onclick = () => { $("score").value = Math.min(5, +$("score").value + 1); paintScore(); };
 function openLog(a) {
-  cur = { act: a, fx: a.fx, min: 0 };
+  cur = { act: a, min: 0 };
   $("log-title").textContent = `${a.emoji} ${a.name}`;
-  fxPicker($("fx"), () => cur.fx, (v) => (cur.fx = v));
+  $("score").value = a.fx; paintScore();
   const opts = [[0, "ไม่ระบุ"], [15, "15"], [30, "30"], [60, "1 ชม."], [120, "2 ชม."]];
   $("mins").innerHTML = opts.map(([m, l]) => `<button type="button" data-m="${m}">${l}</button>`).join("");
   const paint = () => $("mins").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.m === cur.min)));
@@ -398,7 +411,7 @@ function openLog(a) {
 }
 $("log-form").addEventListener("submit", () => {
   const ts = new Date($("when").value).getTime();
-  db.entries.push({ id: uid(), ts: Number.isFinite(ts) ? ts : Date.now(), name: cur.act.name, emoji: cur.act.emoji, fx: cur.fx, min: cur.min, note: $("note").value.trim() });
+  db.entries.push({ id: uid(), ts: Number.isFinite(ts) ? ts : Date.now(), name: cur.act.name, emoji: cur.act.emoji, fx: +$("score").value, exact: true, min: cur.min, note: $("note").value.trim() });
   save(); renderLog();
 });
 $("log-cancel").onclick = () => $("log-dlg").close();
