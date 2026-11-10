@@ -212,3 +212,39 @@ test("score: the same activity can be rushed (negative) or relaxed (positive), a
   await expect(page.locator("#entries")).toContainText("ไม่มีเวลากดดัน");
   await expect(page.locator("#today .big")).toHaveText("+1");
 });
+
+test("themes: Mario is the default, and the choice persists, recolours the browser bar and swaps the logo", async ({ page }) => {
+  const errors = await open(page);
+  await expect(page.locator("html")).toHaveAttribute("data-skin", "mario");
+  await expect(page.locator("#logo")).toHaveText("🍄");
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#e52521");
+
+  await page.getByRole("navigation").getByRole("button", { name: /จัดการ/ }).click();
+  await page.getByRole("button", { name: /อาร์เคด/ }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-skin", "arcade");
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#0a0a23");
+  await expect(page.getByRole("button", { name: /อาร์เคด/ })).toHaveAttribute("aria-pressed", "true");
+
+  await page.getByRole("button", { name: /คลาสสิก/ }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-skin", "classic");
+  await page.reload();                                              // survives a reload, with no flash of the default
+  await expect(page.locator("html")).toHaveAttribute("data-skin", "classic");
+  await expect(page.locator("#logo")).toHaveText("⚡");
+  expect(errors).toEqual([]);
+});
+
+test("themes: an unknown saved theme falls back to Mario, and every theme keeps the app usable", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("energy-map:v1:skin", "bogus"));
+  await open(page);
+  await expect(page.locator("html")).toHaveAttribute("data-skin", "mario");
+  for (const name of ["คลาสสิก", "มาริโอ", "อาร์เคด"]) {
+    await page.getByRole("navigation").getByRole("button", { name: /จัดการ/ }).click();
+    await page.getByRole("button", { name: new RegExp(name) }).click();
+    await page.getByRole("navigation").getByRole("button", { name: /บันทึก/ }).click();
+    await page.locator("#grid [data-act]", { hasText: "ฟังเพลง" }).click();
+    await page.getByRole("button", { name: "บันทึก", exact: true }).click();
+    await expect(page.locator("#entries")).toContainText("ฟังเพลง");
+    const w = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
+    expect(w[0]).toBeLessThanOrEqual(w[1]);
+  }
+});
