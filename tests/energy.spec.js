@@ -355,3 +355,28 @@ test.describe("editing an activity's default level", () => {
     await expect(card(page, "อาบน้ำสบาย ๆ")).toContainText("+3");
   });
 });
+
+test("activity buttons sit in three columns, in every theme, without overflowing", async ({ page }) => {
+  await open(page);
+  for (const skin of ["mario", "classic", "arcade"]) {
+    await page.evaluate((k) => { localStorage.setItem("energy-map:v1:skin", k); document.documentElement.dataset.skin = k; }, skin);
+    const cols = await page.evaluate(() => getComputedStyle(document.getElementById("grid")).gridTemplateColumns.split(" ").length);
+    expect(cols).toBe(3);
+    const cards = page.locator("#grid .act");
+    const n = await cards.count();
+    expect(n).toBeGreaterThanOrEqual(16);
+    const boxes = [];
+    for (let i = 0; i < 3; i++) boxes.push(await cards.nth(i).boundingBox());
+    expect(Math.abs(boxes[0].y - boxes[1].y)).toBeLessThan(1);          // the first three share a row
+    expect(Math.abs(boxes[1].y - boxes[2].y)).toBeLessThan(1);
+    expect(boxes[0].x).toBeLessThan(boxes[1].x);
+    expect(boxes[1].x).toBeLessThan(boxes[2].x);
+    const overflow = await page.evaluate(() => [...document.querySelectorAll("#grid .act")].filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent));
+    expect(overflow).toEqual([]);
+    await noSideScrollCheck(page);
+  }
+});
+async function noSideScrollCheck(page) {
+  const w = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
+  expect(w[0]).toBeLessThanOrEqual(w[1]);
+}

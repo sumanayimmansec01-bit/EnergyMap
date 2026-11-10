@@ -61,14 +61,17 @@
   .pos { color: var(--boost); } .neg { color: var(--drain); }
 
   /* activity grid */
-  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-  .act { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 8px 10px; text-align: left;
-    background: var(--surface); border: 1px solid var(--line); border-left-width: 5px; border-radius: 12px; }
-  .act.b { border-left-color: var(--boost); } .act.d { border-left-color: var(--drain); }
-  .act.n { border-left-color: var(--muted); }
+  /* activity buttons: three columns, each card stacked (emoji, name, level); the colour bar is on top */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .act { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 2px; min-height: 104px; padding: 10px 4px 8px; text-align: center;
+    background: var(--surface); border: 1px solid var(--line); border-top-width: 6px; border-radius: 12px; }
+  .act.b { border-top-color: var(--boost); } .act.d { border-top-color: var(--drain); }
+  .act.n { border-top-color: var(--muted); }
   .rowbtn { display: flex; flex: 1; align-items: center; gap: 10px; min-height: 44px; padding: 0; background: none; border: 0; text-align: left; color: inherit; }
-  .act.add { border-style: dashed; border-left-width: 1px; justify-content: center; color: var(--muted); }
-  .act .em { font-size: 1.4rem; } .act .nm { font-size: .9rem; line-height: 1.25; }
+  .act.add { border-style: dashed; border-top-width: 1px; justify-content: center; color: var(--muted); }
+  .act .em { font-size: 1.9rem; line-height: 1.15; } .act .nm { display: block; font-size: .8rem; line-height: 1.25; overflow-wrap: anywhere; }
+  .act .sub { display: block; font-size: .8rem; line-height: 1.3; } .act br { display: none; }
+  .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } /* read by screen readers, not shown */
   .sub { font-size: .75rem; font-weight: 700; }
 
   /* entries */
@@ -149,11 +152,11 @@
   :root[data-skin="mario"] .btn { border: 3px solid var(--line); box-shadow: 0 3px 0 rgba(16,40,92,.4); }
   :root[data-skin="mario"] .btn:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(16,40,92,.4); }
   :root[data-skin="mario"] .btn.primary { background: var(--accent); color: #fff; }
-  :root[data-skin="mario"] .act { border: 3px solid var(--line); border-left-width: 8px; border-radius: 12px; box-shadow: 0 3px 0 rgba(16,40,92,.3); }
-  :root[data-skin="mario"] .act.b { border-left-color: var(--boost); }
-  :root[data-skin="mario"] .act.d { border-left-color: var(--drain); }
-  :root[data-skin="mario"] .act.n { border-left-color: var(--muted); }
-  :root[data-skin="mario"] .act.add { border-style: dashed; border-left-width: 3px; box-shadow: none; }
+  :root[data-skin="mario"] .act { border: 3px solid var(--line); border-top-width: 8px; border-radius: 12px; box-shadow: 0 3px 0 rgba(16,40,92,.3); }
+  :root[data-skin="mario"] .act.b { border-top-color: var(--boost); }
+  :root[data-skin="mario"] .act.d { border-top-color: var(--drain); }
+  :root[data-skin="mario"] .act.n { border-top-color: var(--muted); }
+  :root[data-skin="mario"] .act.add { border-style: dashed; border-top-width: 3px; box-shadow: none; }
   :root[data-skin="mario"] .seg { background: #10285c; }
   :root[data-skin="mario"] .seg button { color: #e3ecff; }
   :root[data-skin="mario"] .seg button[aria-pressed="true"] { background: #ffd400; color: #10285c; box-shadow: none; }
@@ -455,7 +458,7 @@ function renderLog() {
     <div class="row"><div class="big ${t.net >= 0 ? "pos" : "neg"}">${list.length ? sgn(t.net) : "–"}</div><div class="muted">${esc(state)}</div></div>
     <div class="meter" role="img" aria-label="เติมพลัง ${r1(t.b)} เสียพลัง ${r1(t.d)}">${tot ? `<i class="b" style="width:${(t.b / tot) * 100}%"></i><i class="d" style="width:${(t.d / tot) * 100}%"></i>` : ""}</div>
     <div class="row muted"><span class="pos">▲ เติม ${sgn(t.b)}</span><span class="grow"></span><span class="neg">▼ เสีย ${sgn(-t.d)}</span></div>`;
-  $("grid").innerHTML = db.acts.map((a) => `<button class="act ${fxCls(a.fx)}" data-act="${esc(a.id)}"><span class="em">${esc(a.emoji)}</span><span><span class="nm">${esc(a.name)}</span><br><span class="sub ${a.fx > 0 ? "pos" : a.fx < 0 ? "neg" : ""}">${fxLabel(a.fx)[0]} ${fxLabel(a.fx)[1]} ${sgn(a.fx)}</span></span></button>`).join("")
+  $("grid").innerHTML = db.acts.map((a) => `<button class="act ${fxCls(a.fx)}" data-act="${esc(a.id)}"><span class="em">${esc(a.emoji)}</span><span><span class="nm">${esc(a.name)}</span><br><span class="sub ${a.fx > 0 ? "pos" : a.fx < 0 ? "neg" : ""}">${fxLabel(a.fx)[0]} ${sgn(a.fx)}<span class="vh"> ${fxLabel(a.fx)[1]}</span></span></span></button>`).join("")
     + `<button class="act add" id="grid-add">＋ กิจกรรมใหม่</button>`;
   $("entries").innerHTML = list.length
     ? [...list].sort((x, y) => y.ts - x.ts).map((x) => `<div class="entry"><span class="em">${esc(x.emoji)}</span><div class="grow"><div>${esc(x.name)}</div><div class="muted">${fmtTime(x.ts)}${x.min ? ` · ${x.min} นาที` : ""}${x.note ? ` · ${esc(x.note)}` : ""}</div></div><span class="chip ${pts(x) > 0 ? "b" : pts(x) < 0 ? "d" : "n"}">${sgn(pts(x))}</span><button class="icon-btn" data-del="${esc(x.id)}" aria-label="ลบ ${esc(x.name)}">✕</button></div>`).join("")

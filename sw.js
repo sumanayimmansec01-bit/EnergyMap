@@ -1,5 +1,5 @@
 // Offline cache so the energy tracker opens without a connection once installed.
-const CACHE = "energy-map-v15";
+const CACHE = "energy-map-v17";
 const ASSETS = ["./", "index.html", "games.js", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", (e) => {
