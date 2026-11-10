@@ -94,7 +94,7 @@
   .tips { margin: 0; padding-left: 20px; } .tips li { margin: 6px 0; }
 
   /* bottom nav */
-  nav { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--line);
+  nav { position: fixed; z-index: 5; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--line);
     display: flex; justify-content: center; padding-bottom: env(safe-area-inset-bottom, 0px); }
   nav .in { display: flex; width: 100%; max-width: 480px; }
   nav button { flex: 1; min-height: 60px; border: 0; background: none; color: var(--muted); font-size: .8rem; font-weight: 600; }
@@ -179,6 +179,21 @@
   :root[data-skin="arcade"] .chip.n { background: var(--line); color: var(--fg); }
   :root[data-skin="arcade"] dialog { border-top: 2px solid var(--accent); }
   :root[data-skin="arcade"] nav { background: #070718; border-top: 2px solid var(--accent); }
+
+  /* ---- garden (mario theme only): grass and flowers along the bottom, sprouts on the first card of each page ---- */
+  main { position: relative; z-index: 1; }
+  #garden { display: none; position: fixed; left: 0; right: 0; bottom: calc(60px + env(safe-area-inset-bottom, 0px)); height: 64px; pointer-events: none; z-index: 0;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='64' viewBox='0 0 220 64'%3E%3Cpath d='M0 64Q2 53 7 41Q8 53 10 64Z' fill='%237ad06a'/%3E%3Cpath d='M11 64Q13 48 11 31Q19 48 21 64Z' fill='%237ad06a'/%3E%3Cpath d='M22 64Q24 51 29 37Q30 51 32 64Z' fill='%237ad06a'/%3E%3Cpath d='M33 64Q35 49 41 33Q41 49 43 64Z' fill='%237ad06a'/%3E%3Cpath d='M44 64Q46 47 43 30Q52 47 54 64Z' fill='%237ad06a'/%3E%3Cpath d='M55 64Q57 56 60 48Q63 56 65 64Z' fill='%237ad06a'/%3E%3Cpath d='M66 64Q68 52 72 40Q74 52 76 64Z' fill='%237ad06a'/%3E%3Cpath d='M77 64Q79 53 78 41Q85 53 87 64Z' fill='%237ad06a'/%3E%3Cpath d='M88 64Q90 49 94 33Q96 49 98 64Z' fill='%237ad06a'/%3E%3Cpath d='M99 64Q101 48 104 31Q107 48 109 64Z' fill='%237ad06a'/%3E%3Cpath d='M110 64Q112 50 118 36Q118 50 120 64Z' fill='%237ad06a'/%3E%3Cpath d='M121 64Q123 54 122 44Q129 54 131 64Z' fill='%237ad06a'/%3E%3Cpath d='M132 64Q134 54 138 44Q140 54 142 64Z' fill='%237ad06a'/%3E%3Cpath d='M143 64Q145 50 152 36Q151 50 153 64Z' fill='%237ad06a'/%3E%3Cpath d='M154 64Q156 56 162 48Q162 56 164 64Z' fill='%237ad06a'/%3E%3Cpath d='M165 64Q167 55 165 46Q173 55 175 64Z' fill='%237ad06a'/%3E%3Cpath d='M176 64Q178 47 174 30Q184 47 186 64Z' fill='%237ad06a'/%3E%3Cpath d='M187 64Q189 52 197 39Q195 52 197 64Z' fill='%237ad06a'/%3E%3Cpath d='M198 64Q200 56 200 48Q206 56 208 64Z' fill='%237ad06a'/%3E%3Cpath d='M209 64Q211 49 216 33Q217 49 219 64Z' fill='%237ad06a'/%3E%3Cpath d='M26 34Q29 47 26 64' stroke='%232e9e3f' stroke-width='2.6' fill='none'/%3E%3Cpath d='M27 49q9 -9 15 -3q-6 9 -15 3z' fill='%233fb04a'/%3E%3Ccircle cx='26.0' cy='23.5' r='5.6' fill='%23e52521'/%3E%3Ccircle cx='32.2' cy='28.0' r='5.6' fill='%23e52521'/%3E%3Ccircle cx='29.8' cy='35.3' r='5.6' fill='%23e52521'/%3E%3Ccircle cx='22.2' cy='35.3' r='5.6' fill='%23e52521'/%3E%3Ccircle cx='19.8' cy='28.0' r='5.6' fill='%23e52521'/%3E%3Ccircle cx='26' cy='30' r='4.2' fill='%23ffd400'/%3E%3Cpath d='M70 26Q73 43 70 64' stroke='%232e9e3f' stroke-width='2.6' fill='none'/%3E%3Cpath d='M71 45q9 -9 15 -3q-6 9 -15 3z' fill='%233fb04a'/%3E%3Ccircle cx='70.0' cy='15.5' r='5.6' fill='%23ffd400'/%3E%3Ccircle cx='75.6' cy='18.8' r='5.6' fill='%23ffd400'/%3E%3Ccircle cx='75.6' cy='25.2' r='5.6' fill='%23ffd400'/%3E%3Ccircle cx='70.0' cy='28.5' r='5.6' fill='%23ffd400'/%3E%3Ccircle cx='64.4' cy='25.3' r='5.6' fill='%23ffd400'/%3E%3Ccircle cx='64.4' cy='18.8' r='5.6' fill='%23ffd400'/%3E%3Ccircle cx='70' cy='22' r='4.2' fill='%23e52521'/%3E%3Cpath d='M112 36Q115 48 112 64' stroke='%232e9e3f' stroke-width='2.6' fill='none'/%3E%3Cpath d='M113 50q9 -9 15 -3q-6 9 -15 3z' fill='%233fb04a'/%3E%3Ccircle cx='112.0' cy='25.5' r='5.6' fill='%23ffffff' stroke='%239bb7e6' stroke-width='.8'/%3E%3Ccircle cx='117.6' cy='28.8' r='5.6' fill='%23ffffff' stroke='%239bb7e6' stroke-width='.8'/%3E%3Ccircle cx='117.6' cy='35.2' r='5.6' fill='%23ffffff' stroke='%239bb7e6' stroke-width='.8'/%3E%3Ccircle cx='112.0' cy='38.5' r='5.6' fill='%23ffffff' stroke='%239bb7e6' stroke-width='.8'/%3E%3Ccircle cx='106.4' cy='35.2' r='5.6' fill='%23ffffff' stroke='%239bb7e6' stroke-width='.8'/%3E%3Ccircle cx='106.4' cy='28.8' r='5.6' fill='%23ffffff' stroke='%239bb7e6' stroke-width='.8'/%3E%3Ccircle cx='112' cy='32' r='4.2' fill='%23ffd400'/%3E%3Cpath d='M152 28Q155 44 152 64' stroke='%232e9e3f' stroke-width='2.6' fill='none'/%3E%3Cpath d='M153 46q9 -9 15 -3q-6 9 -15 3z' fill='%233fb04a'/%3E%3Ccircle cx='152.0' cy='17.5' r='5.6' fill='%23ff7eb6'/%3E%3Ccircle cx='158.2' cy='22.0' r='5.6' fill='%23ff7eb6'/%3E%3Ccircle cx='155.8' cy='29.3' r='5.6' fill='%23ff7eb6'/%3E%3Ccircle cx='148.2' cy='29.3' r='5.6' fill='%23ff7eb6'/%3E%3Ccircle cx='145.8' cy='22.0' r='5.6' fill='%23ff7eb6'/%3E%3Ccircle cx='152' cy='24' r='4.2' fill='%23ffd400'/%3E%3Cpath d='M190 38Q188 47 190 64' stroke='%232e9e3f' stroke-width='2.6' fill='none'/%3E%3Cpath d='M181 21Q181 39 190 40Q199 39 199 21L194.5 27L190 20L185.5 27Z' fill='%23e52521'/%3E%3Cpath d='M189 51q-10 -9 -16 -2q6 9 16 2z' fill='%233fb04a'/%3E%3Cpath d='M5 64Q7 57 5 49Q13 57 15 64Z' fill='%232e9e3f'/%3E%3Cpath d='M14 64Q16 56 22 48Q22 56 24 64Z' fill='%232e9e3f'/%3E%3Cpath d='M23 64Q25 59 22 54Q31 59 33 64Z' fill='%232e9e3f'/%3E%3Cpath d='M32 64Q34 53 38 41Q40 53 42 64Z' fill='%232e9e3f'/%3E%3Cpath d='M41 64Q43 59 44 53Q49 59 51 64Z' fill='%232e9e3f'/%3E%3Cpath d='M50 64Q52 55 48 45Q58 55 60 64Z' fill='%232e9e3f'/%3E%3Cpath d='M59 64Q61 52 65 40Q67 52 69 64Z' fill='%232e9e3f'/%3E%3Cpath d='M68 64Q70 58 66 51Q76 58 78 64Z' fill='%232e9e3f'/%3E%3Cpath d='M77 64Q79 59 81 53Q85 59 87 64Z' fill='%232e9e3f'/%3E%3Cpath d='M86 64Q88 56 85 48Q94 56 96 64Z' fill='%232e9e3f'/%3E%3Cpath d='M95 64Q97 58 94 51Q103 58 105 64Z' fill='%232e9e3f'/%3E%3Cpath d='M104 64Q106 55 108 46Q112 55 114 64Z' fill='%232e9e3f'/%3E%3Cpath d='M113 64Q115 59 120 54Q121 59 123 64Z' fill='%232e9e3f'/%3E%3Cpath d='M122 64Q124 59 123 53Q130 59 132 64Z' fill='%232e9e3f'/%3E%3Cpath d='M131 64Q133 54 139 44Q139 54 141 64Z' fill='%232e9e3f'/%3E%3Cpath d='M140 64Q142 55 138 45Q148 55 150 64Z' fill='%232e9e3f'/%3E%3Cpath d='M149 64Q151 55 156 45Q157 55 159 64Z' fill='%232e9e3f'/%3E%3Cpath d='M158 64Q160 56 156 48Q166 56 168 64Z' fill='%232e9e3f'/%3E%3Cpath d='M167 64Q169 58 165 51Q175 58 177 64Z' fill='%232e9e3f'/%3E%3Cpath d='M176 64Q178 55 176 46Q184 55 186 64Z' fill='%232e9e3f'/%3E%3Cpath d='M185 64Q187 57 189 50Q193 57 195 64Z' fill='%232e9e3f'/%3E%3Cpath d='M194 64Q196 58 200 52Q202 58 204 64Z' fill='%232e9e3f'/%3E%3Cpath d='M203 64Q205 59 210 53Q211 59 213 64Z' fill='%232e9e3f'/%3E%3Cpath d='M212 64Q214 57 218 50Q220 57 222 64Z' fill='%232e9e3f'/%3E%3C/svg%3E") repeat-x left bottom / 220px 64px; transform-origin: 50% 100%; animation: sway 7s ease-in-out infinite; }
+  :root[data-skin="mario"] #garden { display: block; }
+  :root[data-skin="mario"] main { padding-bottom: calc(130px + env(safe-area-inset-bottom, 0px)); }
+  .sprout { position: relative; }
+  :root[data-skin="mario"] .sprout::after { content: ""; position: absolute; right: 22px; top: -40px; width: 56px; height: 44px; pointer-events: none;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='44' viewBox='0 0 56 44'%3E%3Cpath d='M28 44Q25 28 30 15' stroke='%232e9e3f' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3Cpath d='M27 32Q9 29 6 16Q22 15 27 32Z' fill='%232e9e3f'/%3E%3Cpath d='M29 26Q46 22 50 9Q34 9 29 26Z' fill='%2359c24a'/%3E%3Ccircle cx='30.0' cy='5.5' r='4.2' fill='%23ff7eb6'/%3E%3Ccircle cx='35.2' cy='9.3' r='4.2' fill='%23ff7eb6'/%3E%3Ccircle cx='33.2' cy='15.5' r='4.2' fill='%23ff7eb6'/%3E%3Ccircle cx='26.8' cy='15.4' r='4.2' fill='%23ff7eb6'/%3E%3Ccircle cx='24.8' cy='9.3' r='4.2' fill='%23ff7eb6'/%3E%3Ccircle cx='30' cy='11' r='3.4' fill='%23ffd400'/%3E%3C/svg%3E") no-repeat center bottom / 56px 44px; transform-origin: 50% 100%; animation: sprout-sway 5s ease-in-out infinite; }
+  :root[data-skin="mario"] #logo img { animation: pop .8s ease-out; }
+  @keyframes sway { 0%, 100% { transform: skewX(-1.3deg); } 50% { transform: skewX(1.3deg); } }
+  @keyframes sprout-sway { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+  @keyframes pop { 0% { transform: scale(.5) rotate(-14deg); } 60% { transform: scale(1.14) rotate(6deg); } 100% { transform: none; } }
+  @media (prefers-reduced-motion: reduce) { #garden, .sprout::after, #logo img { animation: none !important; } }
 </style>
 </head>
 <body>
@@ -190,7 +205,7 @@
       <div id="backup-text"></div>
       <div class="row" style="margin-top:8px"><button class="btn primary grow" id="bk-now">⬇ สำรองตอนนี้</button><button class="btn grow" id="bk-later">ไว้ทีหลัง</button></div>
     </div>
-    <div class="card" id="today"></div>
+    <div class="card sprout" id="today"></div>
     <h2>แตะกิจกรรมที่เพิ่งทำ</h2>
     <div class="grid" id="grid"></div>
     <div class="card" style="margin-top:12px">
@@ -210,7 +225,7 @@
       <strong id="title"></strong>
       <button class="btn" id="next" aria-label="ช่วงถัดไป">›</button>
     </div>
-    <div class="card"><div class="stats" id="stats"></div></div>
+    <div class="card sprout"><div class="stats" id="stats"></div></div>
     <div class="card">
       <h2 id="chart-h"></h2>
       <div id="chart"></div>
@@ -224,7 +239,7 @@
   <!-- MORE -->
   <section id="tab-more" aria-label="เพิ่มเติม" hidden>
     <h1>⚙️ จัดการ</h1>
-    <div class="card"><h2>🎨 ธีมสี</h2><div class="skins" id="skins" role="group" aria-label="เลือกธีม"></div></div>
+    <div class="card sprout"><h2>🎨 ธีมสี</h2><div class="skins" id="skins" role="group" aria-label="เลือกธีม"></div></div>
     <div class="card">
       <h2>กิจกรรมของฉัน</h2>
       <p class="muted" style="margin-top:0">แตะ ✕ เพื่อลบออกจากปุ่มลัด (ประวัติเดิมยังอยู่)</p>
@@ -246,6 +261,8 @@
     </div>
   </section>
 </main>
+
+<div id="garden" aria-hidden="true"></div>
 
 <nav aria-label="เมนูหลัก"><div class="in">
   <button data-tab="log" aria-current="page"><span>⚡</span>บันทึก</button>

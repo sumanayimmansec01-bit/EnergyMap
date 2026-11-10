@@ -248,3 +248,17 @@ test("themes: an unknown saved theme falls back to Mario, and every theme keeps 
     expect(w[0]).toBeLessThanOrEqual(w[1]);
   }
 });
+
+test("garden: shown with the Mario theme only, never blocks taps or causes sideways scroll", async ({ page }) => {
+  await open(page);
+  await expect(page.locator("#garden")).toBeVisible();
+  await expect(page.locator("#today")).toHaveCSS("position", "relative");
+  expect(await page.evaluate(() => getComputedStyle(document.getElementById("garden")).pointerEvents)).toBe("none");
+  const w = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
+  expect(w[0]).toBeLessThanOrEqual(w[1]);
+  await page.getByRole("navigation").getByRole("button", { name: /จัดการ/ }).click();
+  await page.getByRole("button", { name: /คลาสสิก/ }).click();
+  await expect(page.locator("#garden")).toBeHidden();
+  await page.getByRole("button", { name: /มาริโอ/ }).click();
+  await expect(page.locator("#garden")).toBeVisible();
+});
