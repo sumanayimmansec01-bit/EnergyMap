@@ -727,7 +727,7 @@
   function menuHtml() {
     return `<h1>🎮 พักสมอง</h1>
       <div class="card sprout"><div>เกมสั้น ๆ 2–5 นาที ไม่มีเวลาไล่หลัง เล่นเพื่อผ่อนคลาย แพ้ไม่มี เริ่มใหม่ได้เสมอ</div></div>
-      <div class="gmenu">${GAMES.map((g) => `<button class="gcard" data-g="open" data-id="${g.id}"><span class="em" aria-hidden="true">${g.emoji}</span><b>${esc(g.name)}</b><span class="muted">${esc(g.desc)}</span><span class="muted">⏱ ${esc(g.time)}</span><span class="gst">${esc(statText(g.id))}</span></button>`).join("")}</div>`;
+      <div class="gmenu">${GAMES.map((g) => `<button class="gcard" data-g="open" data-id="${g.id}" title="${esc(g.desc)}" aria-label="${esc(g.name)} — ${esc(g.desc)} (${esc(g.time)}) · ${esc(statText(g.id))}"><span class="em" aria-hidden="true">${g.emoji}</span><b>${esc(g.name)}</b><span class="gst">${esc(statText(g.id))}</span></button>`).join("")}</div>`;
   }
   function gameHtml(id) {
     const g = byId(id), v = G[id].view(), s = S[id];

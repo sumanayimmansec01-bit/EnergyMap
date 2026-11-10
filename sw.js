@@ -1,6 +1,6 @@
 // Offline cache so the energy tracker opens without a connection once installed.
-const CACHE = "energy-map-v19";
-const ASSETS = ["./", "index.html", "games.js", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png"];
+const CACHE = "energy-map-v21";
+const ASSETS = ["./", "index.html", "extras.js", "games.js", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
