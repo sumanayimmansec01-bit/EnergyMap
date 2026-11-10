@@ -262,3 +262,14 @@ test("garden: shown with the Mario theme only, never blocks taps or causes sidew
   await page.getByRole("button", { name: /มาริโอ/ }).click();
   await expect(page.locator("#garden")).toBeVisible();
 });
+
+test("zero totals read as plain 0, not +0 or −0", async ({ page }) => {
+  await open(page);
+  await expect(page.locator("#today")).not.toContainText("−0");
+  await expect(page.locator("#today")).not.toContainText("+0");
+  await expect(page.locator("#today")).toContainText("เติม 0");
+  await expect(page.locator("#today")).toContainText("เสีย 0");
+  await page.getByRole("navigation").getByRole("button", { name: /สรุป/ }).click();
+  await expect(page.locator("#stats")).not.toContainText("−0");
+  await expect(page.locator("#stats")).not.toContainText("+0");
+});

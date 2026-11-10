@@ -441,7 +441,7 @@ function renderLog() {
   $("today").innerHTML = `<div class="muted">${esc(fmtDate(s, { weekday: "long", day: "numeric", month: "long" }))}</div>
     <div class="row"><div class="big ${t.net >= 0 ? "pos" : "neg"}">${list.length ? sgn(t.net) : "–"}</div><div class="muted">${esc(state)}</div></div>
     <div class="meter" role="img" aria-label="เติมพลัง ${r1(t.b)} เสียพลัง ${r1(t.d)}">${tot ? `<i class="b" style="width:${(t.b / tot) * 100}%"></i><i class="d" style="width:${(t.d / tot) * 100}%"></i>` : ""}</div>
-    <div class="row muted"><span class="pos">▲ เติม +${r1(t.b)}</span><span class="grow"></span><span class="neg">▼ เสีย −${r1(t.d)}</span></div>`;
+    <div class="row muted"><span class="pos">▲ เติม ${sgn(t.b)}</span><span class="grow"></span><span class="neg">▼ เสีย ${sgn(-t.d)}</span></div>`;
   $("grid").innerHTML = db.acts.map((a) => `<button class="act ${a.fx > 0 ? "b" : "d"}" data-act="${esc(a.id)}"><span class="em">${esc(a.emoji)}</span><span><span class="nm">${esc(a.name)}</span><br><span class="sub ${a.fx > 0 ? "pos" : "neg"}">${FX[a.fx][0]} ${FX[a.fx][1]}</span></span></button>`).join("")
     + `<button class="act add" id="grid-add">＋ กิจกรรมใหม่</button>`;
   $("entries").innerHTML = list.length
@@ -476,7 +476,7 @@ function renderStats() {
     : fmtDate(s, { month: "long", year: "numeric" });
   $("next").disabled = st.off >= 0; $("next").style.opacity = st.off >= 0 ? .4 : 1;
   const days = Math.max(1, Math.round((e - s) / 864e5));
-  $("stats").innerHTML = `<div><b class="pos">+${r1(t.b)}</b><span class="muted">เติมพลัง</span></div><div><b class="neg">−${r1(t.d)}</b><span class="muted">เสียพลัง</span></div><div><b class="${t.net >= 0 ? "pos" : "neg"}">${sgn(t.net)}</b><span class="muted">สุทธิ${days > 1 ? ` (${sgn(t.net / days)}/วัน)` : ""}</span></div>`;
+  $("stats").innerHTML = `<div><b class="pos">${sgn(t.b)}</b><span class="muted">เติมพลัง</span></div><div><b class="neg">${sgn(-t.d)}</b><span class="muted">เสียพลัง</span></div><div><b class="${t.net >= 0 ? "pos" : "neg"}">${sgn(t.net)}</b><span class="muted">สุทธิ${days > 1 ? ` (${sgn(t.net / days)}/วัน)` : ""}</span></div>`;
   let buckets, labels, every;
   if (st.r === "day") { buckets = Array(24).fill(0); list.forEach((x) => (buckets[new Date(x.ts).getHours()] += pts(x))); labels = buckets.map((_, i) => i); every = 3; $("chart-h").textContent = "พลังตามชั่วโมง"; }
   else if (st.r === "week") { buckets = Array(7).fill(0); list.forEach((x) => (buckets[dow(x.ts)] += pts(x))); labels = DOW; every = 1; $("chart-h").textContent = "พลังรายวัน"; }
