@@ -17,15 +17,15 @@ const noSideScroll = async (page) => {
 };
 
 test.describe("menu and shortcuts", () => {
-  test("the Games tab lists all four games and each opens, and 'menu' goes back", async ({ page }) => {
+  test("the Games tab lists all six games and each opens, and 'menu' goes back", async ({ page }) => {
     const errors = await open(page);
     await nav(page, /เกม/).click();
-    await expect(page.locator(".gcard")).toHaveCount(4);
-    for (const [name, title] of [["จัดกระถางดอกไม้", "จัดกระถางดอกไม้"], ["พลิกการ์ดจับคู่", "พลิกการ์ดจับคู่"], ["รวมเมล็ดเป็นต้นไม้", "รวมเมล็ดเป็นต้นไม้"], ["สไลด์ภาพเห็ด", "สไลด์ภาพเห็ด"]]) {
+    await expect(page.locator(".gcard")).toHaveCount(6);
+    for (const [name, title] of [["จัดกระถางดอกไม้", "จัดกระถางดอกไม้"], ["พลิกการ์ดจับคู่", "พลิกการ์ดจับคู่"], ["รวมเมล็ดเป็นต้นไม้", "รวมเมล็ดเป็นต้นไม้"], ["สไลด์ภาพเห็ด", "สไลด์ภาพเห็ด"], ["เลื่อนรับลูกบอล", "เลื่อนรับลูกบอล"], ["จับคู่ไพ่มาจง", "จับคู่ไพ่มาจง"]]) {
       await page.locator(".gcard", { hasText: name }).click();
       await expect(page.locator("#tab-games h1")).toContainText(title);
       await page.getByRole("button", { name: /เมนู/ }).click();
-      await expect(page.locator(".gcard")).toHaveCount(4);
+      await expect(page.locator(".gcard")).toHaveCount(6);
     }
     expect(errors).toEqual([]);
   });
@@ -38,7 +38,7 @@ test.describe("menu and shortcuts", () => {
   });
 
   test("?game= opens a game directly (the app-icon shortcuts use it)", async ({ page }) => {
-    for (const [id, title] of [["sort", "จัดกระถางดอกไม้"], ["memory", "พลิกการ์ดจับคู่"], ["merge", "รวมเมล็ดเป็นต้นไม้"], ["slide", "สไลด์ภาพเห็ด"]]) {
+    for (const [id, title] of [["sort", "จัดกระถางดอกไม้"], ["memory", "พลิกการ์ดจับคู่"], ["merge", "รวมเมล็ดเป็นต้นไม้"], ["slide", "สไลด์ภาพเห็ด"], ["ball", "เลื่อนรับลูกบอล"], ["mahjong", "จับคู่ไพ่มาจง"]]) {
       await open(page, `/index.html?game=${id}&seed=3`);
       await expect(page.locator("#tab-games h1")).toContainText(title);
     }
@@ -54,7 +54,7 @@ test.describe("menu and shortcuts", () => {
   test("tapping the Games tab again returns to the menu", async ({ page }) => {
     await open(page, "/index.html?game=slide");
     await nav(page, /เกม/).click();
-    await expect(page.locator(".gcard")).toHaveCount(4);
+    await expect(page.locator(".gcard")).toHaveCount(6);
   });
 });
 
@@ -237,7 +237,7 @@ test("every game fits a phone screen in every theme", async ({ page }) => {
   await open(page);
   for (const skin of ["classic", "mario", "arcade"]) {
     await page.evaluate((k) => { localStorage.setItem("energy-map:v1:skin", k); document.documentElement.dataset.skin = k; }, skin);
-    for (const id of ["sort", "memory", "merge", "slide"]) {
+    for (const id of ["sort", "memory", "merge", "slide", "ball", "mahjong"]) {
       await page.evaluate((g) => window.Games.open(g), id);
       await expect(page.locator("#tab-games h1")).toBeVisible();
       await noSideScroll(page);
@@ -245,4 +245,175 @@ test("every game fits a phone screen in every theme", async ({ page }) => {
     await page.getByRole("button", { name: /เมนู/ }).click();
     await noSideScroll(page);
   }
+});
+
+test.describe("catch the ball", () => {
+  test("rules: catch, miss, star, bomb, pause and the 45 s limit", async ({ page }) => {
+    await open(page);
+    const r = await logic(page, (L) => {
+      const mk = (items, extra = {}) => ({ t: 45000, score: 5, caught: 0, x: 150, pw: 70, items, spawn: 99999, running: true, over: false, ...extra });
+      const ball = (x, y, type = "ball") => ({ x, y, vy: 100, type, e: "⚽" });
+      const a = mk([ball(150, 370)]); L.ballStep(a, 33);
+      const b = mk([ball(250, 370)]); L.ballStep(b, 33);
+      const c = mk([ball(150, 370, "star")]); L.ballStep(c, 33);
+      const d = mk([ball(150, 370, "bomb")], { score: 1 }); L.ballStep(d, 33);
+      const e = mk([ball(250, 419)]); L.ballStep(e, 33);
+      const f = mk([], { t: 20 }); L.ballStep(f, 33);
+      const g = mk([ball(150, 370)], { running: false }); L.ballStep(g, 33);
+      return {
+        caught: [a.score, a.caught, a.items.length], far: [b.score, b.items.length], star: c.score, bomb: [d.score, d.caught],
+        missed: [e.score, e.items.length], over: [f.over, f.t, f.running], paused: [g.items.length, g.items[0].y],
+        clamp: [L.clampX({ pw: 70 }, -50), L.clampX({ pw: 70 }, 999), L.clampX({ pw: 70 }, 120)],
+      };
+    });
+    expect(r).toEqual({ caught: [6, 1, 0], far: [5, 1], star: 8, bomb: [0, 0], missed: [5, 0], over: [true, 0, false], paused: [1, 370], clamp: [35, 265, 120] });
+  });
+
+  test("playing a round: start, catch, pause, resume, finish, log it", async ({ page }) => {
+    const errors = await open(page, "/index.html?game=ball&seed=7");
+    await page.evaluate(() => window.Games._test.ball({ items: [{ x: 150, y: 360, vy: 60, type: "ball", e: "⚽" }], x: 150 }));
+    await expect(page.locator("#tab-games .gpill")).toHaveText("เวลา 45 วิ · 0 คะแนน");
+    await page.getByRole("button", { name: "▶ เริ่ม" }).click();
+    await page.clock.runFor(300);
+    await expect(page.locator("#tab-games .gpill")).toContainText("1 คะแนน");
+
+    await page.getByRole("button", { name: "⏸ พัก" }).click();
+    const frozen = await page.locator("#tab-games .gpill").textContent();
+    await page.clock.runFor(3000);
+    await expect(page.locator("#tab-games .gpill")).toHaveText(frozen);   // nothing moves while paused
+    await page.getByRole("button", { name: "▶ ต่อ" }).click();
+
+    await page.clock.runFor(50000);
+    await expect(page.locator(".gres")).toContainText("หมดเวลา");
+    await page.getByRole("button", { name: /บันทึกเป็นกิจกรรมเติมพลัง/ }).click();
+    await nav(page, /บันทึก/).click();
+    await expect(page.locator("#entries")).toContainText("เลื่อนรับลูกบอล");
+
+    await nav(page, /เกม/).click();                                       // back to the game it was on ...
+    await page.getByRole("button", { name: /เมนู/ }).click();            // ... and from there to the menu, which shows the best score
+    await expect(page.locator(".gcard", { hasText: "เลื่อนรับลูกบอล" })).toContainText("คะแนนสูงสุด");
+    await page.locator(".gcard", { hasText: "เลื่อนรับลูกบอล" }).click();
+    await page.getByRole("button", { name: "เล่นอีกรอบ" }).click();     // a new round starts from zero
+    await expect(page.locator("#tab-games .gpill")).toHaveText("เวลา 45 วิ · 0 คะแนน");
+    expect(errors).toEqual([]);
+  });
+
+  test("the basket follows a drag, the arrow buttons and the arrow keys, and stays on the board", async ({ page }) => {
+    await open(page, "/index.html?game=ball&seed=7");
+    const x = () => page.evaluate(() => window.Games._test.get("ball").x);
+    expect(await x()).toBe(150);
+    await page.getByRole("button", { name: "เลื่อนตะกร้าไปขวา" }).click();
+    expect(await x()).toBe(178);
+    await page.getByRole("button", { name: "เลื่อนตะกร้าไปซ้าย" }).click();
+    await page.getByRole("button", { name: "เลื่อนตะกร้าไปซ้าย" }).click();
+    expect(await x()).toBe(122);
+    await page.keyboard.press("ArrowRight");
+    expect(await x()).toBe(150);
+    const b = await page.locator("#ballc").boundingBox();
+    await page.mouse.move(b.x + b.width * 0.5, b.y + b.height * 0.5);
+    await page.mouse.down();
+    await page.mouse.move(b.x + b.width * 0.8, b.y + b.height * 0.5);
+    expect(Math.round(await x())).toBe(240);                              // 80 % of 300
+    await page.mouse.move(b.x + b.width * 0.01, b.y + b.height * 0.5);    // far left is clamped to half the basket
+    await page.mouse.up();
+    expect(await x()).toBe(35);
+    await page.mouse.move(b.x + b.width * 0.9, b.y + b.height * 0.5);     // a hover without pressing does nothing
+    expect(await x()).toBe(35);
+  });
+});
+
+test.describe("mahjong match", () => {
+  const tile = (page, face, row, col) => page.getByRole("button", { name: new RegExp(`^ไพ่ ${face} แถว ${row} คอลัมน์ ${col} `) });
+
+  test("rules: free tiles need nothing on top and an open side", async ({ page }) => {
+    await open(page);
+    const r = await logic(page, (L) => {
+      const T = (r, c, z, alive = true) => ({ r, c, z, f: "x", alive });
+      const row = [T(0, 0, 0), T(0, 1, 0), T(0, 2, 0)];
+      const stack = [T(0, 0, 0), T(0, 0, 1)];
+      const gone = [T(0, 0, 0), T(0, 1, 0, false), T(0, 2, 0)];
+      return {
+        ends: [L.mjFree(row, 0), L.mjFree(row, 1), L.mjFree(row, 2)],
+        covered: [L.mjFree(stack, 0), L.mjFree(stack, 1)],
+        opened: L.mjFree(gone, 0), dead: L.mjFree(gone, 1), tiles: L.MJ_LAYOUT.length,
+      };
+    });
+    expect(r).toEqual({ ends: [true, false, true], covered: [false, true], opened: true, dead: false, tiles: 36 });
+  });
+
+  test("every deal can be played to the end and uses each face four times", async ({ page }) => {
+    await open(page, "/index.html?seed=21");
+    const r = await logic(page, (L) => Array.from({ length: 25 }, () => {
+      const d = L.mjDeal(L.MJ_LAYOUT), tiles = L.MJ_LAYOUT.map((p) => ({ ...p, alive: true })), counts = {};
+      d.faces.forEach((f) => (counts[f] = (counts[f] || 0) + 1));
+      let ok = true;
+      for (const [a, b] of d.order) { ok = ok && L.mjFree(tiles, a) && L.mjFree(tiles, b) && d.faces[a] === d.faces[b]; tiles[a].alive = tiles[b].alive = false; }
+      return { ok, cleared: tiles.every((t) => !t.alive), kinds: Object.keys(counts).length, four: Object.values(counts).every((n) => n === 4) };
+    }));
+    expect(r.every((d) => d.ok && d.cleared && d.kinds === 9 && d.four)).toBe(true);
+  });
+
+  test("the real board starts with 36 tiles, of which only some can be picked", async ({ page }) => {
+    await open(page, "/index.html?game=mahjong&seed=5");
+    await expect(page.locator(".tile")).toHaveCount(36);
+    await expect(page.locator("#tab-games .gpill")).toContainText("เหลือ 36 ใบ · จับแล้ว 0 คู่");
+    const free = await page.locator('.tile[data-free="1"]').count();
+    expect(free).toBeGreaterThanOrEqual(2);
+    expect(free).toBeLessThan(36);
+    await noSideScroll(page);
+  });
+
+  test("playing a small board: select, swap selection, match, hint, undo, win, log", async ({ page }) => {
+    const errors = await open(page, "/index.html?game=mahjong&seed=7");
+    await page.evaluate(() => window.Games._test.mahjong([
+      { r: 0, c: 0, z: 0, f: "🍄" }, { r: 0, c: 1, z: 0, f: "🍄" }, { r: 1, c: 0, z: 0, f: "🌸" }, { r: 1, c: 1, z: 0, f: "🌸" }]));
+    await expect(page.locator("#tab-games .gpill")).toContainText("เหลือ 4 ใบ");
+    await tile(page, "🍄", 1, 1).click();
+    await expect(tile(page, "🍄", 1, 1)).toHaveAttribute("aria-pressed", "true");
+    await tile(page, "🌸", 2, 1).click();                                   // a different face moves the selection
+    await expect(tile(page, "🍄", 1, 1)).toHaveAttribute("aria-pressed", "false");
+    await expect(tile(page, "🌸", 2, 1)).toHaveAttribute("aria-pressed", "true");
+    await tile(page, "🌸", 2, 1).click();                                   // tapping it again clears it
+    await expect(tile(page, "🌸", 2, 1)).toHaveAttribute("aria-pressed", "false");
+
+    await tile(page, "🍄", 1, 1).click(); await tile(page, "🍄", 1, 2).click();
+    await expect(page.locator("#tab-games .gpill")).toContainText("เหลือ 2 ใบ · จับแล้ว 1 คู่");
+    await page.getByRole("button", { name: /ย้อนกลับ/ }).click();
+    await expect(page.locator("#tab-games .gpill")).toContainText("เหลือ 4 ใบ · จับแล้ว 0 คู่");
+    await page.getByRole("button", { name: /ใบ้/ }).click();
+    await expect(page.locator('.tile[data-hint="1"]')).toHaveCount(2);
+    await tile(page, "🍄", 1, 1).click(); await tile(page, "🍄", 1, 2).click();
+    await tile(page, "🌸", 2, 1).click(); await tile(page, "🌸", 2, 2).click();
+    await expect(page.locator(".gres")).toContainText("จับคู่ครบทุกใบแล้ว");
+    await page.getByRole("button", { name: /บันทึกเป็นกิจกรรมเติมพลัง/ }).click();
+    await nav(page, /บันทึก/).click();
+    await expect(page.locator("#entries")).toContainText("จับคู่ไพ่มาจง");
+    expect(errors).toEqual([]);
+  });
+
+  test("a covered tile cannot be picked until what is on top is gone", async ({ page }) => {
+    await open(page, "/index.html?game=mahjong&seed=7");
+    await page.evaluate(() => window.Games._test.mahjong([
+      { r: 0, c: 0, z: 0, f: "🌸" }, { r: 0, c: 0, z: 1, f: "🍄" }, { r: 0, c: 2, z: 0, f: "🍄" }, { r: 0, c: 3, z: 0, f: "🌸" }]));
+    await expect(tile(page, "🌸", 1, 1)).toHaveAttribute("data-free", "0");
+    await tile(page, "🌸", 1, 1).dispatchEvent("click");                    // a real tap lands on the tile on top, so aim at the covered one directly
+    await expect(tile(page, "🌸", 1, 1)).toHaveAttribute("aria-pressed", "false");
+    await page.getByRole("button", { name: /^ไพ่ 🍄 แถว 1 คอลัมน์ 1 ชั้น 2/ }).click();
+    await tile(page, "🍄", 1, 3).click();
+    await expect(tile(page, "🌸", 1, 1)).toHaveAttribute("data-free", "1");
+    await tile(page, "🌸", 1, 1).click(); await tile(page, "🌸", 1, 4).click();
+    await expect(page.locator(".gres")).toContainText("จับคู่ครบทุกใบแล้ว");
+  });
+
+  test("with no pair left it says so, and reshuffling the rest gets things moving", async ({ page }) => {
+    await open(page, "/index.html?game=mahjong&seed=7");
+    await page.evaluate(() => window.Games._test.mahjong([
+      { r: 0, c: 0, z: 0, f: "🌸" }, { r: 0, c: 0, z: 1, f: "🍄" }, { r: 0, c: 3, z: 0, f: "🍄" }, { r: 0, c: 3, z: 1, f: "🌸" }]));
+    await expect(page.locator(".gres")).toContainText("ไม่มีคู่ที่จับได้แล้ว");
+    await expect(page.getByRole("button", { name: /บันทึกเป็นกิจกรรมเติมพลัง/ })).toHaveCount(0);
+    await page.getByRole("button", { name: /สับไพ่ที่เหลือ/ }).click();
+    await expect(page.locator(".gres")).toHaveCount(0);
+    await page.getByRole("button", { name: /ใบ้/ }).click();
+    await expect(page.locator('.tile[data-hint="1"]')).toHaveCount(2);
+  });
 });

@@ -229,6 +229,14 @@
   .st { position: relative; border: 0; border-radius: 8px; padding: 0; background-image: url(icon.svg); background-size: 300% 300%; background-color: var(--surface); }
   .st.blank { background: rgba(255,255,255,.2); }
   .st i { position: absolute; left: 4px; top: 3px; padding: 0 6px; font-size: .72rem; font-style: normal; font-weight: 700; color: #10285c; background: rgba(255,255,255,.85); border-radius: 6px; }
+  .ballc { display: block; width: 100%; max-width: 340px; aspect-ratio: 3 / 4; margin: 0 auto; background: linear-gradient(#a9d3fb, #eaf6ff); border: 3px solid var(--line); border-radius: 12px; touch-action: none; }
+  .arrows.two { grid-template-columns: 1fr 1fr; }
+  .mjb { position: relative; width: 100%; max-width: 360px; aspect-ratio: 6 / 5; margin: 8px auto 4px; }
+  .tile { position: absolute; width: calc(100% / 6); height: 25%; padding: 0; font-size: 1.7rem; line-height: 1; color: #10285c; background: #fffdf5;
+    border: 2px solid #10285c; border-bottom-width: 5px; border-radius: 8px; box-shadow: 2px 3px 0 rgba(16,40,92,.25); }
+  .tile[data-free="0"] { opacity: .55; filter: saturate(.4); }
+  .tile[aria-pressed="true"] { box-shadow: 0 0 0 4px var(--accent); }
+  .tile[data-hint="1"] { box-shadow: 0 0 0 4px var(--boost); }
   @media (prefers-reduced-motion: reduce) { .pot { transition: none; } }
 </style>
 </head>
