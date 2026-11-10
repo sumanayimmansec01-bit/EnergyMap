@@ -126,36 +126,44 @@
   .skins .sw { display: flex; } .skins .sw i { width: 20px; height: 20px; border-radius: 50%; margin-left: -5px; border: 2px solid var(--surface); }
   .skins .sw i:first-child { margin-left: 0; }
 
+  /* mario: sky blue, grass green, cap red, overalls blue, white clouds, block yellow */
   :root[data-skin="mario"] {
-    --bg: #5c94fc; --surface: #fffaf0; --fg: #2b1b0e; --muted: #6a5842; --line: #2b1b0e;
-    --accent: #e52521; --accent-fg: #ffffff; --accent-soft: #ffd9d4;
-    --boost: #126a27; --boost-soft: #d7f5cf; --drain: #a8460c; --drain-soft: #fde3c8; --danger: #b3170f;
+    --bg: #7fb8f5; --surface: #ffffff; --fg: #10285c; --muted: #4a5f8a; --line: #10285c;
+    --accent: #1f5fd0; --accent-fg: #ffffff; --accent-soft: #dbe8ff;
+    --boost: #137a2a; --boost-soft: #d9f5dc; --drain: #c8201f; --drain-soft: #ffe0de; --danger: #b3170f;
     color-scheme: light;
   }
-  :root[data-skin="mario"] body { background: linear-gradient(#5c94fc, #9bbcff 70%, #c8dcff) fixed #5c94fc; }
-  :root[data-skin="mario"] section > h1 { color: #fff; text-shadow: 2px 2px 0 #2b1b0e; }
-  :root[data-skin="mario"] section > h2, :root[data-skin="mario"] .pager strong { display: inline-block; color: #fff; background: #2b1b0e; padding: 2px 12px; border-radius: 8px; }
-  :root[data-skin="mario"] .card { border: 3px solid var(--line); border-radius: 14px; box-shadow: 0 5px 0 rgba(43,27,14,.35); }
-  :root[data-skin="mario"] .btn { border: 3px solid var(--line); box-shadow: 0 3px 0 rgba(43,27,14,.45); }
-  :root[data-skin="mario"] .btn:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(43,27,14,.45); }
+  :root[data-skin="mario"] body {
+    background:
+      radial-gradient(ellipse 60px 22px at 86% 4%, #fff 98%, transparent),
+      radial-gradient(ellipse 44px 18px at 93% 6%, #fff 98%, transparent),
+      radial-gradient(ellipse 70px 24px at 8% 30%, #fff 98%, transparent),
+      linear-gradient(#5aa5f2, #a9d3fb 55%, #e3f2ff) fixed;
+    background-color: #7fb8f5;
+  }
+  :root[data-skin="mario"] section > h1 { color: #fff; text-shadow: 2px 2px 0 #10285c; }
+  :root[data-skin="mario"] section > h2, :root[data-skin="mario"] .pager strong { display: inline-block; color: #fff; background: #10285c; padding: 2px 12px; border-radius: 8px; }
+  :root[data-skin="mario"] .card { border: 3px solid var(--line); border-radius: 14px; box-shadow: 0 5px 0 rgba(16,40,92,.35); }
+  :root[data-skin="mario"] .btn { border: 3px solid var(--line); box-shadow: 0 3px 0 rgba(16,40,92,.4); }
+  :root[data-skin="mario"] .btn:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(16,40,92,.4); }
   :root[data-skin="mario"] .btn.primary { background: var(--accent); color: #fff; }
-  :root[data-skin="mario"] .act { border: 3px solid var(--line); border-left-width: 8px; border-radius: 12px; box-shadow: 0 3px 0 rgba(43,27,14,.3); }
+  :root[data-skin="mario"] .act { border: 3px solid var(--line); border-left-width: 8px; border-radius: 12px; box-shadow: 0 3px 0 rgba(16,40,92,.3); }
   :root[data-skin="mario"] .act.b { border-left-color: var(--boost); }
   :root[data-skin="mario"] .act.d { border-left-color: var(--drain); }
   :root[data-skin="mario"] .act.add { border-style: dashed; border-left-width: 3px; box-shadow: none; }
-  :root[data-skin="mario"] .seg { background: #2b1b0e; }
-  :root[data-skin="mario"] .seg button { color: #f3e3c3; }
-  :root[data-skin="mario"] .seg button[aria-pressed="true"] { background: #fbd000; color: #2b1b0e; box-shadow: none; }
+  :root[data-skin="mario"] .seg { background: #10285c; }
+  :root[data-skin="mario"] .seg button { color: #e3ecff; }
+  :root[data-skin="mario"] .seg button[aria-pressed="true"] { background: #ffd400; color: #10285c; box-shadow: none; }
   :root[data-skin="mario"] .chip { border: 2px solid var(--line); }
-  :root[data-skin="mario"] .chip.n { background: #eadcc0; color: var(--fg); }
-  :root[data-skin="mario"] .entry { border-top-color: rgba(43,27,14,.18); }
-  :root[data-skin="mario"] .meter { border: 2px solid var(--line); background: #eadcc0; }
+  :root[data-skin="mario"] .chip.n { background: #e6eefc; color: var(--fg); }
+  :root[data-skin="mario"] .entry { border-top-color: rgba(16,40,92,.18); }
+  :root[data-skin="mario"] .meter { border: 2px solid var(--line); background: #e6eefc; }
   :root[data-skin="mario"] .fx button, :root[data-skin="mario"] .chips button { border-width: 3px; }
   :root[data-skin="mario"] input, :root[data-skin="mario"] textarea { background: #fff; border: 2px solid var(--line); }
   :root[data-skin="mario"] dialog { border: 3px solid var(--line); border-bottom: 0; }
-  :root[data-skin="mario"] nav { background: #a9410a; background-image: linear-gradient(rgba(0,0,0,.3) 2px, transparent 2px), linear-gradient(90deg, rgba(0,0,0,.3) 2px, transparent 2px); background-size: 48px 30px; border-top: 4px solid #2b1b0e; }
-  :root[data-skin="mario"] nav button { color: #ffe8cf; }
-  :root[data-skin="mario"] nav button[aria-current="page"] { color: #fbd000; text-shadow: 1px 1px 0 #2b1b0e; }
+  :root[data-skin="mario"] nav { background: #167a2d; background-image: linear-gradient(90deg, rgba(255,255,255,.22) 0 14px, transparent 14px 64px); background-size: 64px 100%; border-top: 4px solid #0a4a1a; }
+  :root[data-skin="mario"] nav button { color: #fff; }
+  :root[data-skin="mario"] nav button[aria-current="page"] { color: #ffd400; text-shadow: 1px 1px 0 #0a4a1a; }
 
   :root[data-skin="arcade"] {
     --bg: #0a0a23; --surface: #15153a; --fg: #f2f2ff; --muted: #a3a3d9; --line: #34346e;
@@ -551,7 +559,7 @@ $("wipe").onclick = () => {
 const SKEY = KEY + ":skin";
 const SKINS = [
   { id: "classic", name: "คลาสสิก", logo: "⚡", bar: "#0f766e", sw: ["#0f766e", "#1f7a4d", "#b4440e"] },
-  { id: "mario", name: "มาริโอ", logo: "🍄", bar: "#e52521", sw: ["#e52521", "#fbd000", "#5c94fc"] },
+  { id: "mario", name: "มาริโอ", logo: '<img src="icon.svg" alt="" width="36" height="36" style="vertical-align:-9px;border-radius:10px">', bar: "#e52521", sw: ["#e52521", "#ffd400", "#1f5fd0", "#1a8f35"] },
   { id: "arcade", name: "อาร์เคด", logo: "👾", bar: "#0a0a23", sw: ["#ffd400", "#3dff8f", "#ff5c7a"] },
 ];
 let skin = (() => { try { const v = localStorage.getItem(SKEY); return SKINS.some((k) => k.id === v) ? v : "mario"; } catch { return "mario"; } })();
@@ -559,7 +567,7 @@ function applySkin() {
   const k = SKINS.find((x) => x.id === skin);
   document.documentElement.dataset.skin = k.id;
   document.querySelector('meta[name="theme-color"]').content = k.bar;
-  $("logo").textContent = k.logo;
+  $("logo").innerHTML = k.logo; // trusted constants from SKINS above
   $("skins").innerHTML = SKINS.map((x) => `<button type="button" data-skin="${x.id}" aria-pressed="${x.id === skin}"><span class="sw" aria-hidden="true">${x.sw.map((c) => `<i style="background:${c}"></i>`).join("")}</span>${x.id === skin ? "✓ " : ""}${x.name}</button>`).join("");
 }
 $("skins").addEventListener("click", (e) => {

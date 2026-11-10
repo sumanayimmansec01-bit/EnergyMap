@@ -216,7 +216,7 @@ test("score: the same activity can be rushed (negative) or relaxed (positive), a
 test("themes: Mario is the default, and the choice persists, recolours the browser bar and swaps the logo", async ({ page }) => {
   const errors = await open(page);
   await expect(page.locator("html")).toHaveAttribute("data-skin", "mario");
-  await expect(page.locator("#logo")).toHaveText("🍄");
+  await expect(page.locator("#logo img")).toHaveAttribute("src", "icon.svg");
   await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#e52521");
 
   await page.getByRole("navigation").getByRole("button", { name: /จัดการ/ }).click();
