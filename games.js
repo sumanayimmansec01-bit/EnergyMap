@@ -20,7 +20,7 @@
   const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
   /* ---------- stats (kept on this device only) ---------- */
-  const DEF = () => ({ sort: { level: 1, wins: 0 }, memory: { wins: 0, best: 0 }, merge: { wins: 0, best: 0 }, slide: { wins: 0, best: 0 }, ball: { best: 0, plays: 0 }, mahjong: { wins: 0, best: 0 }, tetris: { best: 0, plays: 0 }, egg: { wins: 0, best: 0 } });
+  const DEF = () => ({ sort: { level: 1, wins: 0 }, memory: { wins: 0, best: 0 }, merge: { wins: 0, best: 0 }, slide: { wins: 0, best: 0 }, ball: { best: 0, plays: 0 }, mahjong: { wins: 0, best: 0 }, tetris: { best: 0, plays: 0 }, egg: { wins: 0, best: 0 }, gem: { best: 0, plays: 0 }, block: { best: 0, plays: 0 } });
   let stats = (() => {
     try { const s = JSON.parse(localStorage.getItem(SKEY)); const d = DEF(); for (const k in d) d[k] = { ...d[k], ...(s && s[k]) }; return d; } catch { return DEF(); }
   })();
@@ -313,6 +313,97 @@
     },
   });
 
+  /* ---------- gem match-3 and block-fit rules ---------- */
+  const GEM = { N: 8, KINDS: 6, MOVES: 25 };
+  const mkShape = (id, c, k) => ({ id, c, k, h: Math.max(...c.map((x) => x[0])) + 1, w: Math.max(...c.map((x) => x[1])) + 1 });
+  const lineH = (n) => Array.from({ length: n }, (_, i) => [0, i]), lineV = (n) => Array.from({ length: n }, (_, i) => [i, 0]);
+  const rectOf = (h, w) => { const a = []; for (let r = 0; r < h; r++) for (let c = 0; c < w; c++) a.push([r, c]); return a; };
+  const BLK_N = 8;
+  const BLK_SHAPES = [
+    mkShape("dot", [[0, 0]], 1),
+    mkShape("h2", lineH(2), 2), mkShape("h3", lineH(3), 2), mkShape("h4", lineH(4), 3), mkShape("h5", lineH(5), 3),
+    mkShape("v2", lineV(2), 2), mkShape("v3", lineV(3), 2), mkShape("v4", lineV(4), 3), mkShape("v5", lineV(5), 3),
+    mkShape("sq2", rectOf(2, 2), 4), mkShape("sq3", rectOf(3, 3), 5), mkShape("r23", rectOf(2, 3), 6), mkShape("r32", rectOf(3, 2), 6),
+    mkShape("l3a", [[0, 0], [1, 0], [1, 1]], 7), mkShape("l3b", [[0, 1], [1, 0], [1, 1]], 7), mkShape("l3c", [[0, 0], [0, 1], [1, 0]], 7), mkShape("l3d", [[0, 0], [0, 1], [1, 1]], 7),
+    mkShape("l5a", [[0, 0], [1, 0], [2, 0], [2, 1], [2, 2]], 4), mkShape("l5b", [[0, 2], [1, 2], [2, 0], [2, 1], [2, 2]], 4),
+    mkShape("l5c", [[0, 0], [0, 1], [0, 2], [1, 0], [2, 0]], 4), mkShape("l5d", [[0, 0], [0, 1], [0, 2], [1, 2], [2, 2]], 4),
+    mkShape("t4", [[0, 0], [0, 1], [0, 2], [1, 1]], 6), mkShape("s4", [[0, 1], [0, 2], [1, 0], [1, 1]], 3), mkShape("z4", [[0, 0], [0, 1], [1, 1], [1, 2]], 3),
+  ];
+  Object.assign(L, {
+    GEM, BLK_N, BLK_SHAPES,
+    gemRand: () => 1 + Math.floor(rnd() * GEM.KINDS),
+    // every cell that is part of a straight run of 3 or more of the same gem
+    gemMatches(g) {
+      const R = g.length, C = g[0].length, out = new Set();
+      for (let r = 0; r < R; r++) { let run = 1; for (let c = 1; c <= C; c++) { if (c < C && g[r][c] && g[r][c] === g[r][c - 1]) run++; else { if (run >= 3) for (let k = 1; k <= run; k++) out.add(r * C + c - k); run = 1; } } }
+      for (let c = 0; c < C; c++) { let run = 1; for (let r = 1; r <= R; r++) { if (r < R && g[r][c] && g[r][c] === g[r - 1][c]) run++; else { if (run >= 3) for (let k = 1; k <= run; k++) out.add((r - k) * C + c); run = 1; } } }
+      return [...out].sort((a, b) => a - b);
+    },
+    gemSwapped(g, a, b) { const C = g[0].length, x = g.map((row) => row.slice()), [ar, ac, br, bc] = [Math.floor(a / C), a % C, Math.floor(b / C), b % C]; [x[ar][ac], x[br][bc]] = [x[br][bc], x[ar][ac]]; return x; },
+    gemAdjacent: (a, b, C) => Math.abs(Math.floor(a / C) - Math.floor(b / C)) + Math.abs((a % C) - (b % C)) === 1,
+    gemHint(g) {
+      const R = g.length, C = g[0].length;
+      for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
+        for (const [dr, dc] of [[0, 1], [1, 0]]) {
+          if (r + dr >= R || c + dc >= C) continue;
+          if (L.gemMatches(L.gemSwapped(g, r * C + c, (r + dr) * C + c + dc)).length) return [r * C + c, (r + dr) * C + c + dc];
+        }
+      }
+      return null;
+    },
+    gemHasMove: (g) => !!L.gemHint(g),
+    // matched gems vanish, the ones above fall, and new ones drop in from the top
+    gemCollapse(g, gone) {
+      const R = g.length, C = g[0].length, out = g.map((row) => row.slice());
+      for (let c = 0; c < C; c++) {
+        const keep = []; for (let r = R - 1; r >= 0; r--) if (!gone.has(r * C + c)) keep.push(g[r][c]);
+        for (let i = 0; i < R; i++) out[R - 1 - i][c] = i < keep.length ? keep[i] : L.gemRand();
+      }
+      return out;
+    },
+    // a fresh board never starts with a match, and always has a move to make
+    gemNew() {
+      for (let t = 0; t < 200; t++) {
+        const g = Array.from({ length: GEM.N }, () => Array(GEM.N).fill(0));
+        for (let r = 0; r < GEM.N; r++) for (let c = 0; c < GEM.N; c++) {
+          let k; do k = L.gemRand(); while ((c >= 2 && g[r][c - 1] === k && g[r][c - 2] === k) || (r >= 2 && g[r - 1][c] === k && g[r - 2][c] === k));
+          g[r][c] = k;
+        }
+        if (L.gemHasMove(g)) return g;
+      }
+      return Array.from({ length: GEM.N }, (_, r) => Array.from({ length: GEM.N }, (_, c) => ((r * 2 + c * 3) % 5) + 1));
+    },
+    gemShuffle(g) {
+      const R = g.length, C = g[0].length;
+      for (let t = 0; t < 100; t++) {
+        const flat = shuffle(g.flat()), x = Array.from({ length: R }, (_, r) => flat.slice(r * C, (r + 1) * C));
+        if (!L.gemMatches(x).length && L.gemHasMove(x)) return x;
+      }
+      return L.gemNew();
+    },
+
+    blkTopLeft: (sh, r, c) => ({ r: Math.max(0, Math.min(BLK_N - sh.h, r - Math.floor(sh.h / 2))), c: Math.max(0, Math.min(BLK_N - sh.w, c - Math.floor(sh.w / 2))) }),
+    blkCanPlace: (grid, cells, r, c) => cells.every(([dr, dc]) => r + dr >= 0 && r + dr < BLK_N && c + dc >= 0 && c + dc < BLK_N && !grid[r + dr][c + dc]),
+    blkPlace(grid, sh, r, c) { sh.c.forEach(([dr, dc]) => (grid[r + dr][c + dc] = sh.k)); },
+    // clears every full row and full column at once; returns how many lines went
+    blkClear(grid) {
+      const rows = [], cols = [];
+      for (let i = 0; i < BLK_N; i++) { if (grid[i].every(Boolean)) rows.push(i); if (grid.every((row) => row[i])) cols.push(i); }
+      rows.forEach((r) => grid[r].fill(0)); cols.forEach((c) => grid.forEach((row) => (row[c] = 0)));
+      return rows.length + cols.length;
+    },
+    blkLineScore: (n) => (10 * n * (n + 1)) / 2,
+    blkFitsAnywhere(grid, sh) { for (let r = 0; r <= BLK_N - sh.h; r++) for (let c = 0; c <= BLK_N - sh.w; c++) if (L.blkCanPlace(grid, sh.c, r, c)) return true; return false; },
+    blkAnyFit: (grid, tray) => tray.some((i) => i != null && L.blkFitsAnywhere(grid, BLK_SHAPES[i])),
+    blkEmpty: () => Array.from({ length: BLK_N }, () => Array(BLK_N).fill(0)),
+    // three pieces, and at least one of them can always be placed
+    blkDeal(grid) {
+      let tray;
+      for (let t = 0; t < 40; t++) { tray = [0, 1, 2].map(() => Math.floor(rnd() * BLK_SHAPES.length)); if (L.blkAnyFit(grid, tray)) return tray; }
+      return tray;
+    },
+  });
+
   /* ---------- state ---------- */
   const GAMES = [
     { id: "sort", emoji: "🌷", name: "จัดกระถางดอกไม้", short: "จัดกระถาง", desc: "เรียงดอกไม้ให้แต่ละกระถางมีชนิดเดียว", time: "2–4 นาที" },
@@ -323,11 +414,13 @@
     { id: "mahjong", emoji: "🀄", name: "จับคู่ไพ่มาจง", short: "มาจง", desc: "จับคู่ไพ่ที่เหมือนกันและไม่ถูกบัง ให้หมดกระดาน", time: "3–5 นาที" },
     { id: "tetris", emoji: "🧱", name: "เทตริส", short: "เทตริส", desc: "เรียงบล็อกให้เต็มแถวแล้วแถวจะหายไป เริ่มช้า ๆ ผ่อนคลาย", time: "3–5 นาที" },
     { id: "egg", emoji: "🥚", name: "ยิงไข่ไดโนเสาร์", short: "ยิงไข่", desc: "ยิงไข่ให้สีเดียวกันครบ 3 ฟองเพื่อให้แตก", time: "3–5 นาที" },
+    { id: "gem", emoji: "💎", name: "เรียงเพชร", short: "เพชร", desc: "สลับเพชรข้างกันให้ได้ 3 เม็ดขึ้นไปเรียงกัน เพชรจะหายแล้วตกลงมาเติม", time: "3–5 นาที" },
+    { id: "block", emoji: "🟦", name: "จัดบล็อกให้พอดีแถว", short: "บล็อก", desc: "วางบล็อกให้เต็มแถวหรือเต็มคอลัมน์ แล้วแถวนั้นจะหายไป", time: "3–10 นาที" },
   ];
   const byId = (id) => GAMES.find((g) => g.id === id);
   let view = null; // null = the menu
   const S = {};
-  let memTimer = 0;
+  let memTimer = 0, gemTimer = 0;
   const clearMem = () => clearTimeout(memTimer);
 
   function spawn(g) {
@@ -603,7 +696,115 @@
         if (a === "ea") s.ang = L.eggClamp(s.ang + +el.dataset.d * 0.06);
       },
     },
+
+    gem: {
+      start() { clearTimeout(gemTimer); S.gem = { grid: L.gemNew(), sel: -1, score: 0, moves: GEM.MOVES, combo: 0, busy: false, marked: [], bad: null, hint: null, over: false, shuffled: false, counted: false, logged: false }; },
+      view() {
+        const s = S.gem, C = GEM.N, marked = new Set(s.marked);
+        const cells = s.grid.map((row, r) => row.map((k, c) => {
+          const i = r * C + c, st = marked.has(i) ? "marked" : s.sel === i ? "sel" : s.bad && s.bad.includes(i) ? "bad" : s.hint && s.hint.includes(i) ? "hint" : "";
+          return `<button class="gm" data-g="gem" data-i="${i}" data-k="${k}" data-state="${st}" aria-pressed="${s.sel === i}" aria-label="เพชร${GEM_NAME[k]} แถว ${r + 1} คอลัมน์ ${c + 1}">${gemSvg(k)}</button>`;
+        }).join("")).join("");
+        return {
+          status: `คะแนน ${s.score} · เหลือ ${s.moves} ตา${s.combo > 1 ? ` · คอมโบ ×${s.combo}` : ""}`,
+          hint: s.shuffled ? "ไม่มีคู่ให้สลับแล้ว สับเพชรใหม่ให้นะ" : "แตะเพชร 1 เม็ด แล้วแตะเม็ดที่อยู่ข้างกันเพื่อสลับ ต้องได้ 3 เม็ดขึ้นไปเรียงกัน (ลองสลับผิดไม่เสียตา)",
+          body: `<div class="gems" role="group" aria-label="กระดานเพชร 8×8">${cells}</div>`,
+          tools: s.over ? "" : `<button class="btn" data-g="hint"${s.busy ? " disabled" : ""}>💡 ใบ้</button><button class="btn" data-g="new">⟳ เริ่มใหม่</button>`,
+          result: s.over ? { msg: `💎 หมดตาแล้ว! ได้ ${s.score} คะแนน`, extra: `<button class="btn primary" data-g="new">เล่นอีกรอบ</button>` } : null,
+        };
+      },
+      act(a, el) {
+        const s = S.gem;
+        if (a === "new") return G.gem.start();
+        if (s.busy || s.over) return;
+        if (a === "hint") { s.hint = L.gemHint(s.grid); return; }
+        if (a !== "gem") return;
+        s.hint = null; s.shuffled = false;
+        const i = +el.dataset.i;
+        if (s.sel < 0) { s.sel = i; return; }
+        if (s.sel === i) { s.sel = -1; return; }
+        if (!L.gemAdjacent(s.sel, i, GEM.N)) { s.sel = i; return; }
+        const swapped = L.gemSwapped(s.grid, s.sel, i);
+        if (!L.gemMatches(swapped).length) {                                 // a swap that makes nothing is undone, and costs nothing
+          s.bad = [s.sel, i]; s.sel = -1;
+          gemTimer = setTimeout(() => { if (S.gem === s) { s.bad = null; if (view === "gem") render(); } }, 400);
+          return;
+        }
+        s.grid = swapped; s.sel = -1; s.moves--; s.combo = 0; gemStep(s);
+      },
+    },
+
+    block: {
+      start() { const grid = L.blkEmpty(); S.block = { grid, tray: L.blkDeal(grid), sel: 0, at: null, score: 0, lines: 0, msg: "", hist: null, over: false, counted: false, logged: false }; },
+      view() {
+        const s = S.block, N = BLK_N, sh = s.sel >= 0 && s.tray[s.sel] != null ? BLK_SHAPES[s.tray[s.sel]] : null, ghost = new Map();
+        if (sh && s.at) { const tl = L.blkTopLeft(sh, s.at.r, s.at.c), ok = L.blkCanPlace(s.grid, sh.c, tl.r, tl.c); sh.c.forEach(([dr, dc]) => ghost.set((tl.r + dr) * N + tl.c + dc, ok ? "ok" : "bad")); }
+        const cells = s.grid.map((row, r) => row.map((k, c) => `<button class="bc" data-g="bc" data-r="${r}" data-c="${c}"${k ? ` data-k="${k}" style="background:${BLK_COL[k]}"` : ""}${ghost.has(r * N + c) ? ` data-ghost="${ghost.get(r * N + c)}"` : ""} aria-label="ช่อง แถว ${r + 1} คอลัมน์ ${c + 1} ${k ? "มีบล็อก" : "ว่าง"}"></button>`).join("")).join("");
+        const tray = s.tray.map((i, n) => {
+          if (i == null) return `<button class="tp" disabled aria-label="ชิ้นที่ ${n + 1} วางแล้ว"></button>`;
+          const b = BLK_SHAPES[i], on = new Set(b.c.map(([r, c]) => r * b.w + c));
+          const mini = Array.from({ length: b.h * b.w }, (_, j) => `<i${on.has(j) ? ` style="background:${BLK_COL[b.k]}"` : ' class="off"'}></i>`).join("");
+          return `<button class="tp" data-g="bt" data-i="${n}" aria-pressed="${s.sel === n}" aria-label="ชิ้นที่ ${n + 1} ขนาด ${b.c.length} ช่อง"><span class="mini" style="grid-template-columns:repeat(${b.w},13px)">${mini}</span></button>`;
+        }).join("");
+        const canPlace = !!(sh && s.at);
+        return {
+          status: `คะแนน ${s.score} · ล้างแล้ว ${s.lines} แถว`,
+          hint: s.msg || "เลือกชิ้นด้านล่าง แตะช่องบนกระดานเพื่อดูตำแหน่ง แตะซ้ำที่เดิมหรือกด ✔ วาง เพื่อวางจริง",
+          body: `<div class="blk" role="group" aria-label="กระดานบล็อก 8×8">${cells}</div><div class="tray">${tray}</div>`,
+          tools: s.over ? "" : `<button class="btn primary" data-g="place"${canPlace ? "" : " disabled"}>✔ วาง</button><button class="btn" data-g="undo"${s.hist ? "" : " disabled"}>↶ ย้อนกลับ</button><button class="btn" data-g="new">⟳ เริ่มใหม่</button>`,
+          result: s.over ? { msg: `🟦 ไม่มีที่วางแล้ว! ได้ ${s.score} คะแนน (ล้าง ${s.lines} แถว)`, extra: `<button class="btn primary" data-g="new">เล่นอีกรอบ</button>` } : null,
+        };
+      },
+      doPlace() {
+        const s = S.block, sh = BLK_SHAPES[s.tray[s.sel]], tl = L.blkTopLeft(sh, s.at.r, s.at.c);
+        if (!L.blkCanPlace(s.grid, sh.c, tl.r, tl.c)) { s.msg = "วางตรงนี้ไม่ได้ ลองตำแหน่งอื่นนะ"; return; }
+        s.hist = { grid: s.grid.map((r) => r.slice()), tray: s.tray.slice(), score: s.score, lines: s.lines, sel: s.sel };
+        L.blkPlace(s.grid, sh, tl.r, tl.c); s.score += sh.c.length;
+        const n = L.blkClear(s.grid); if (n) { s.score += L.blkLineScore(n); s.lines += n; }
+        s.tray[s.sel] = null; s.at = null; s.msg = "";
+        if (s.tray.every((x) => x == null)) s.tray = L.blkDeal(s.grid);
+        s.sel = s.tray.findIndex((x) => x != null);
+        if (!L.blkAnyFit(s.grid, s.tray)) { s.over = true; if (!s.counted) { s.counted = true; stats.block.plays++; stats.block.best = Math.max(stats.block.best, s.score); saveStats(); } }
+      },
+      act(a, el) {
+        const s = S.block;
+        if (a === "new") return G.block.start();
+        if (s.over) return;
+        if (a === "undo") { if (s.hist) { Object.assign(s, s.hist, { hist: null, at: null, msg: "" }); } return; }
+        if (a === "bt") { s.sel = +el.dataset.i; s.at = null; s.msg = ""; return; }
+        if (a === "place") { if (s.sel >= 0 && s.at) G.block.doPlace(); return; }
+        if (a !== "bc") return;
+        if (s.sel < 0 || s.tray[s.sel] == null) s.sel = s.tray.findIndex((x) => x != null);
+        const r = +el.dataset.r, c = +el.dataset.c;
+        if (s.at && s.at.r === r && s.at.c === c) G.block.doPlace(); else { s.at = { r, c }; s.msg = ""; }
+      },
+    },
   };
+
+  /* ---------- gem cascade: matched gems pop, the rest fall, repeat until the board settles ---------- */
+  const GEM_COL = ["", "#f43f5e", "#3b82f6", "#22c55e", "#facc15", "#a855f7", "#fb923c"];
+  const GEM_NAME = ["", "กลมสีชมพู", "ข้าวหลามตัดสีฟ้า", "หกเหลี่ยมสีเขียว", "สามเหลี่ยมสีเหลือง", "สี่เหลี่ยมสีม่วง", "ห้าเหลี่ยมสีส้ม"];
+  const GEM_PATH = ["", '<circle cx="20" cy="20" r="14"/>', '<polygon points="20,4 35,20 20,36 5,20"/>', '<polygon points="12,6 28,6 36,20 28,34 12,34 4,20"/>',
+    '<polygon points="20,6 36,33 4,33"/>', '<rect x="7" y="7" width="26" height="26" rx="5"/>', '<polygon points="20,4 36,16 30,35 10,35 4,16"/>'];
+  const gemSvg = (k) => `<svg viewBox="0 0 40 40" aria-hidden="true"><g fill="${GEM_COL[k]}" stroke="#10285c" stroke-width="2.4" stroke-linejoin="round">${GEM_PATH[k]}</g><path d="M13 14l7-6" stroke="#fff" stroke-opacity=".7" stroke-width="3" stroke-linecap="round" fill="none"/></svg>`;
+  const BLK_COL = ["", "#f87171", "#60a5fa", "#34d399", "#fbbf24", "#a78bfa", "#fb923c", "#f472b6"];
+  function gemStep(s) {
+    const refresh = () => { if (S.gem === s && view === "gem") render(); };
+    const m = L.gemMatches(s.grid);
+    if (m.length) {
+      s.combo++; s.marked = m; s.score += m.length * 10 * s.combo; s.busy = true; refresh();
+      gemTimer = setTimeout(() => {
+        if (S.gem !== s) return;
+        s.grid = L.gemCollapse(s.grid, new Set(m)); s.marked = []; refresh();
+        gemTimer = setTimeout(() => { if (S.gem === s) gemStep(s); }, 240);
+      }, 280);
+      return;
+    }
+    s.busy = false;
+    if (s.moves > 0 && !L.gemHasMove(s.grid)) { s.grid = L.gemShuffle(s.grid); s.shuffled = true; }
+    if (s.moves <= 0) { s.over = true; if (!s.counted) { s.counted = true; stats.gem.plays++; stats.gem.best = Math.max(stats.gem.best, s.score); saveStats(); } }
+    refresh();
+  }
 
   /* ---------- animated games: one shared 33 ms tick, so every phone plays them at the same pace ---------- */
   let loopId = 0;
@@ -720,7 +921,7 @@
   function statText(id) {
     const t = stats[id];
     if (id === "sort") return `ผ่านแล้ว ${t.wins} ด่าน`;
-    if (id === "merge" || id === "ball" || id === "tetris") return t.best ? `คะแนนสูงสุด ${t.best}` : "ยังไม่เคยเล่น";
+    if (id === "merge" || id === "ball" || id === "tetris" || id === "gem" || id === "block") return t.best ? `คะแนนสูงสุด ${t.best}` : "ยังไม่เคยเล่น";
     if (id === "mahjong") return t.wins ? `เคลียร์แล้ว ${t.wins} ครั้ง` : "ยังไม่เคยเคลียร์";
     return t.wins ? `ชนะ ${t.wins} ครั้ง · ดีที่สุด ${t.best} ครั้ง` : "ยังไม่เคยชนะ";
   }
@@ -864,6 +1065,8 @@
       mahjong: (spec) => { G.mahjong.start(spec); render(); },
       tetris: (patch) => { if (!S.tetris) G.tetris.start(); Object.assign(S.tetris, patch); render(); },
       egg: (patch) => { if (!S.egg) G.egg.start(); Object.assign(S.egg, patch); render(); },
+      gem: (patch) => { if (!S.gem) G.gem.start(); Object.assign(S.gem, patch); render(); },
+      block: (patch) => { if (!S.block) G.block.start(); Object.assign(S.block, patch); render(); },
       get: (id) => S[id],
     },
   };

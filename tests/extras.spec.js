@@ -250,7 +250,7 @@ test("the game menu is a compact grid of three, with the details kept for screen
   await nav(page, /เกม/).click();
   const cols = await page.evaluate(() => getComputedStyle(document.querySelector(".gmenu")).gridTemplateColumns.split(" ").length);
   expect(cols).toBe(3);
-  await expect(page.locator(".gcard")).toHaveCount(8);
+  await expect(page.locator(".gcard")).toHaveCount(10);
   const box = await page.locator(".gcard").first().boundingBox();
   expect(box.height).toBeLessThan(135);                                   // it used to be 160+
   const first = page.locator(".gcard").first();
