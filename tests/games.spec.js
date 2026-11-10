@@ -30,12 +30,11 @@ test.describe("menu and shortcuts", () => {
     expect(errors).toEqual([]);
   });
 
-  test("the log tab has a shortcut to each game", async ({ page }) => {
+  test("the log tab no longer repeats the game menu", async ({ page }) => {
     await open(page);
-    await expect(page.locator("#gshort button")).toHaveCount(4);
-    await page.getByRole("button", { name: "เล่น พลิกการ์ดจับคู่" }).click();
-    await expect(page.locator("#tab-games h1")).toContainText("พลิกการ์ดจับคู่");
-    await expect(page.locator("#tab-log")).toBeHidden();
+    await expect(page.locator("#tab-log")).not.toContainText("พักสมอง");
+    await expect(page.locator("#tab-log").getByRole("button", { name: /^เล่น/ })).toHaveCount(0);
+    await expect(nav(page, /เกม/)).toBeVisible();                    // the Games tab is the way in
   });
 
   test("?game= opens a game directly (the app-icon shortcuts use it)", async ({ page }) => {

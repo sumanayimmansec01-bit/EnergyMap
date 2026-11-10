@@ -199,10 +199,6 @@
   @media (prefers-reduced-motion: reduce) { #garden, .sprout::after, #logo img { animation: none !important; } }
 
   /* ---- games ---- */
-  .gshort { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
-  .gshort button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 64px; padding: 6px 2px;
-    background: var(--surface); border: 2px solid var(--line); border-radius: 12px; font-size: .75rem; font-weight: 700; }
-  .gshort button span { font-size: 1.5rem; line-height: 1.1; }
   .gmenu { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .gcard { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-height: 160px; padding: 12px; text-align: left;
     background: var(--surface); border: 2px solid var(--line); border-radius: 14px; }
@@ -248,8 +244,6 @@
     <div class="card sprout" id="today"></div>
     <h2>แตะกิจกรรมที่เพิ่งทำ</h2>
     <div class="grid" id="grid"></div>
-    <h2 style="margin-top:16px">🎮 พักสมอง</h2>
-    <div class="gshort" id="gshort"></div>
     <div class="card" style="margin-top:12px">
       <h2>บันทึกวันนี้</h2>
       <div id="entries"></div>

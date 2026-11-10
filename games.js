@@ -320,14 +320,8 @@
     e.preventDefault(); G.merge.move(d); render();
   }
 
-  function shortcuts() {
-    const el = document.getElementById("gshort"); if (!el) return;
-    el.innerHTML = GAMES.map((g) => `<button type="button" data-id="${g.id}" aria-label="เล่น ${esc(g.name)}"><span aria-hidden="true">${g.emoji}</span>${esc(g.short)}</button>`).join("");
-    el.onclick = (e) => { const b = e.target.closest("button"); if (b) open(b.dataset.id); };
-  }
-
   const api = {
-    render, open, home, shortcuts, has: (id) => !!G[id], show: null, onLog: null, _logic: L,
+    render, open, home, has: (id) => !!G[id], show: null, onLog: null, _logic: L,
     _test: {
       sort: (pots) => { if (!S.sort) G.sort.start(); Object.assign(S.sort, { pots, sel: -1, hist: [], moves: 0, won: false }); render(); },
       memory: (order) => { G.memory.start(order); render(); },
@@ -342,6 +336,5 @@
     r.addEventListener("pointerdown", onDown);
     r.addEventListener("pointerup", onUp);
     document.addEventListener("keydown", onKey);
-    shortcuts();
   });
 })();
