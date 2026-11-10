@@ -17,15 +17,15 @@ const noSideScroll = async (page) => {
 };
 
 test.describe("menu and shortcuts", () => {
-  test("the Games tab lists all six games and each opens, and 'menu' goes back", async ({ page }) => {
+  test("the Games tab lists all eight games and each opens, and 'menu' goes back", async ({ page }) => {
     const errors = await open(page);
     await nav(page, /เกม/).click();
-    await expect(page.locator(".gcard")).toHaveCount(6);
-    for (const [name, title] of [["จัดกระถางดอกไม้", "จัดกระถางดอกไม้"], ["พลิกการ์ดจับคู่", "พลิกการ์ดจับคู่"], ["รวมเมล็ดเป็นต้นไม้", "รวมเมล็ดเป็นต้นไม้"], ["สไลด์ภาพเห็ด", "สไลด์ภาพเห็ด"], ["เลื่อนรับลูกบอล", "เลื่อนรับลูกบอล"], ["จับคู่ไพ่มาจง", "จับคู่ไพ่มาจง"]]) {
+    await expect(page.locator(".gcard")).toHaveCount(8);
+    for (const [name, title] of [["จัดกระถางดอกไม้", "จัดกระถางดอกไม้"], ["พลิกการ์ดจับคู่", "พลิกการ์ดจับคู่"], ["รวมเมล็ดเป็นต้นไม้", "รวมเมล็ดเป็นต้นไม้"], ["สไลด์ภาพเห็ด", "สไลด์ภาพเห็ด"], ["เลื่อนรับลูกบอล", "เลื่อนรับลูกบอล"], ["จับคู่ไพ่มาจง", "จับคู่ไพ่มาจง"], ["เทตริส", "เทตริส"], ["ยิงไข่ไดโนเสาร์", "ยิงไข่ไดโนเสาร์"]]) {
       await page.locator(".gcard", { hasText: name }).click();
       await expect(page.locator("#tab-games h1")).toContainText(title);
       await page.getByRole("button", { name: /เมนู/ }).click();
-      await expect(page.locator(".gcard")).toHaveCount(6);
+      await expect(page.locator(".gcard")).toHaveCount(8);
     }
     expect(errors).toEqual([]);
   });
@@ -38,7 +38,7 @@ test.describe("menu and shortcuts", () => {
   });
 
   test("?game= opens a game directly (the app-icon shortcuts use it)", async ({ page }) => {
-    for (const [id, title] of [["sort", "จัดกระถางดอกไม้"], ["memory", "พลิกการ์ดจับคู่"], ["merge", "รวมเมล็ดเป็นต้นไม้"], ["slide", "สไลด์ภาพเห็ด"], ["ball", "เลื่อนรับลูกบอล"], ["mahjong", "จับคู่ไพ่มาจง"]]) {
+    for (const [id, title] of [["sort", "จัดกระถางดอกไม้"], ["memory", "พลิกการ์ดจับคู่"], ["merge", "รวมเมล็ดเป็นต้นไม้"], ["slide", "สไลด์ภาพเห็ด"], ["ball", "เลื่อนรับลูกบอล"], ["mahjong", "จับคู่ไพ่มาจง"], ["tetris", "เทตริส"], ["egg", "ยิงไข่ไดโนเสาร์"]]) {
       await open(page, `/index.html?game=${id}&seed=3`);
       await expect(page.locator("#tab-games h1")).toContainText(title);
     }
@@ -54,7 +54,7 @@ test.describe("menu and shortcuts", () => {
   test("tapping the Games tab again returns to the menu", async ({ page }) => {
     await open(page, "/index.html?game=slide");
     await nav(page, /เกม/).click();
-    await expect(page.locator(".gcard")).toHaveCount(6);
+    await expect(page.locator(".gcard")).toHaveCount(8);
   });
 });
 
@@ -237,7 +237,7 @@ test("every game fits a phone screen in every theme", async ({ page }) => {
   await open(page);
   for (const skin of ["classic", "mario", "arcade"]) {
     await page.evaluate((k) => { localStorage.setItem("energy-map:v1:skin", k); document.documentElement.dataset.skin = k; }, skin);
-    for (const id of ["sort", "memory", "merge", "slide", "ball", "mahjong"]) {
+    for (const id of ["sort", "memory", "merge", "slide", "ball", "mahjong", "tetris", "egg"]) {
       await page.evaluate((g) => window.Games.open(g), id);
       await expect(page.locator("#tab-games h1")).toBeVisible();
       await noSideScroll(page);
@@ -457,4 +457,304 @@ test("catch the ball: the board and its slider both fit above the menu bar on a 
   expect(pad.y + pad.height).toBeLessThanOrEqual(nv.y);
   expect(cv.y).toBeGreaterThanOrEqual(0);
   expect(cv.width).toBeGreaterThanOrEqual(160);
+});
+
+test("catch the ball: tapping the board starts it, so the start button need not be in reach", async ({ page }) => {
+  await open(page, "/index.html?game=ball&seed=7");
+  const running = () => page.evaluate(() => window.Games._test.get("ball").running);
+  expect(await running()).toBe(false);
+  const b = await page.locator("#ballc").boundingBox();
+  await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+  expect(await running()).toBe(true);
+  await expect(page.getByRole("button", { name: "⏸ พัก" })).toBeVisible();
+});
+
+const tstate = (page) => page.evaluate(() => { const s = window.Games._test.get("tetris"); return { x: s.piece.x, y: s.piece.y, r: s.piece.r, k: s.piece.k, running: s.running, over: s.over, score: s.score, filled: s.grid.flat().filter(Boolean).length }; });
+
+test.describe("tetris", () => {
+  test("rules: every piece has four cells, four turns bring it back, and it fits inside its box", async ({ page }) => {
+    await open(page);
+    const r = await logic(page, (L) => {
+      const out = {};
+      for (const k of L.T_KINDS) {
+        const c = [0, 1, 2, 3].map((n) => L.tCells(k, n));
+        out[k] = { four: c.every((cells) => cells.length === 4), back: JSON.stringify(L.tCells(k, 4)) === JSON.stringify(c[0]), inBox: c.every((cells) => cells.every(([x, y]) => x >= 0 && y >= 0 && x < 4 && y < 4)) };
+      }
+      const sorted = (k, n) => JSON.stringify(L.tCells(k, n).sort());
+      out.oSame = sorted("O", 0) === sorted("O", 1);
+      out.iFlat = L.tCells("I", 0).every(([, y]) => y === L.tCells("I", 0)[0][1]);
+      out.iTall = L.tCells("I", 1).every(([x]) => x === L.tCells("I", 1)[0][0]);
+      return out;
+    });
+    for (const k of ["I", "O", "T", "S", "Z", "J", "L"]) expect(r[k]).toEqual({ four: true, back: true, inBox: true });
+    expect([r.oSame, r.iFlat, r.iTall]).toEqual([true, true, true]);
+  });
+
+  test("rules: walls, floor, other blocks, wall kicks, and the speed curve", async ({ page }) => {
+    await open(page);
+    const r = await logic(page, (L) => {
+      const s = L.tNew(), g = s.grid;
+      const blocked = L.tNew(); blocked.grid[5][4] = "T";
+      const tall = L.tNew(); tall.piece = { k: "I", r: 1, x: 7, y: 0 };        // a vertical I against the right wall
+      const rotated = L.tRot(tall, 1);
+      return {
+        spawn: L.tFits(g, s.piece.k, 0, s.piece.x, s.piece.y),
+        leftWall: L.tFits(g, "O", 0, -1, 0), rightWall: [L.tFits(g, "O", 0, 8, 0), L.tFits(g, "O", 0, 9, 0)],
+        floor: [L.tFits(g, "O", 0, 4, 18), L.tFits(g, "O", 0, 4, 19)],
+        block: L.tFits(blocked.grid, "O", 0, 4, 4),
+        kick: [rotated, tall.piece.x, tall.piece.r],
+        speed: [L.tInterval(1), L.tInterval(2), L.tInterval(50)],
+      };
+    });
+    expect(r).toEqual({ spawn: true, leftWall: false, rightWall: [true, false], floor: [true, false], block: false, kick: [true, 6, 2], speed: [720, 660, 120] });
+  });
+
+  test("rules: locking clears full rows and scores 100/300/500/800 times the level", async ({ page }) => {
+    await open(page);
+    const r = await logic(page, (L) => {
+      const one = L.tNew(); one.grid[19] = [0, 0, 0, 0, 1, 1, 1, 1, 1, 1]; one.piece = { k: "I", r: 0, x: 0, y: 18 };
+      const n1 = L.tLock(one);
+      const four = L.tNew(); for (let y = 16; y < 20; y++) four.grid[y] = [1, 1, 1, 1, 1, 1, 1, 1, 1, 0]; four.piece = { k: "I", r: 1, x: 7, y: 16 };
+      const n4 = L.tLock(four);
+      const lv = L.tNew(); lv.lines = 9; lv.level = 1; lv.grid[19] = [0, 0, 0, 0, 1, 1, 1, 1, 1, 1]; lv.piece = { k: "I", r: 0, x: 0, y: 18 }; L.tLock(lv);
+      const lv2 = L.tNew(); lv2.level = 3; lv2.grid[19] = [0, 0, 0, 0, 1, 1, 1, 1, 1, 1]; lv2.piece = { k: "I", r: 0, x: 0, y: 18 }; L.tLock(lv2);
+      return { n1, s1: one.score, l1: one.lines, empty1: one.grid.flat().filter(Boolean).length, n4, s4: four.score, level: [lv.level, lv.lines], s3: lv2.score, size: four.grid.length };
+    });
+    expect(r).toEqual({ n1: 1, s1: 100, l1: 1, empty1: 0, n4: 4, s4: 800, level: [2, 10], s3: 300, size: 20 });
+  });
+
+  test("rules: hard drop, soft drop, gravity timing, game over and the 7-bag", async ({ page }) => {
+    await open(page);
+    const r = await logic(page, (L) => {
+      const s = L.tNew(); const k = s.piece.k, y0 = s.piece.y, ghost = L.tGhostY(s);
+      L.tHard(s);
+      const hard = { filled: s.grid.flat().filter(Boolean).length, score: s.score, dropped: ghost - y0, lowest: s.grid.findIndex((row) => row.some(Boolean)) >= 16 };
+      const g = L.tNew(); g.running = true; const y = g.piece.y;
+      L.tStep(g, 719); const early = g.piece.y; L.tStep(g, 1); const later = g.piece.y;
+      const p = L.tNew(); const py = p.piece.y; L.tDown(p, true);
+      const over = L.tNew(); over.grid[0] = Array(10).fill("T"); over.next = "O"; L.tSpawn(over);
+      const bag = L.tNew(); bag.bag = []; const seven = new Set(Array.from({ length: 7 }, () => L.tBag(bag)));
+      return { hard, early: early === y, later: later === y + 1, soft: [p.piece.y - py, p.score], over: [over.over, over.running], bag: seven.size };
+    });
+    expect(r.hard.filled).toBe(4);
+    expect(r.hard.score).toBe(r.hard.dropped * 2);
+    expect(r.hard.lowest).toBe(true);
+    expect(r).toMatchObject({ early: true, later: true, soft: [1, 1], over: [true, false], bag: 7 });
+  });
+
+  test("playing: start, move, turn, drop, gravity, pause, keyboard", async ({ page }) => {
+    const errors = await open(page, "/index.html?game=tetris&seed=3");
+    await expect(page.locator("#tab-games .gpill")).toHaveText("คะแนน 0 · แถว 0 · เลเวล 1");
+    let s = await tstate(page); expect(s.running).toBe(false);
+    await page.getByRole("button", { name: "เลื่อนซ้าย" }).click();             // ignored until the game is running
+    expect((await tstate(page)).x).toBe(s.x);
+    await page.getByRole("button", { name: "▶ เริ่ม" }).click();
+    await page.getByRole("button", { name: "เลื่อนซ้าย" }).click();
+    expect((await tstate(page)).x).toBe(s.x - 1);
+    await page.getByRole("button", { name: "เลื่อนขวา" }).click();
+    expect((await tstate(page)).x).toBe(s.x);
+    await page.getByRole("button", { name: "หมุนบล็อก" }).click();
+    expect((await tstate(page)).r).toBe(1);
+    await page.getByRole("button", { name: "ลงทีละช่อง" }).click();
+    expect((await tstate(page)).y).toBe(s.y + 1);
+
+    s = await tstate(page);
+    await page.clock.runFor(800);                                               // one gravity step at level 1 is 720 ms
+    expect((await tstate(page)).y).toBeGreaterThan(s.y);
+
+    await page.getByRole("button", { name: "⏸ พัก" }).click();
+    s = await tstate(page);
+    await page.clock.runFor(3000);
+    expect((await tstate(page)).y).toBe(s.y);                                   // frozen while paused
+    await page.getByRole("button", { name: "▶ ต่อ" }).click();
+
+    await page.keyboard.press("ArrowLeft");
+    expect((await tstate(page)).x).toBe(s.x - 1);
+    await page.keyboard.press("ArrowUp");
+    expect((await tstate(page)).r).toBe((s.r + 1) % 4);
+    await page.keyboard.press("Space");                                         // hard drop locks the piece and brings the next
+    const after = await tstate(page);
+    expect(after.filled).toBe(4);
+    expect(after.score).toBeGreaterThan(0);
+    expect(after.y).toBeLessThanOrEqual(1);
+    expect(errors).toEqual([]);
+  });
+
+  test("the board: tap starts then turns, a sideways drag slides the piece", async ({ page }) => {
+    await open(page, "/index.html?game=tetris&seed=3");
+    const b = await page.locator("#tetc").boundingBox();
+    const cx = b.x + b.width * 0.3, cy = b.y + b.height * 0.5;
+    await page.mouse.click(cx, cy);
+    let s = await tstate(page);
+    expect([s.running, s.r]).toEqual([true, 0]);                                // the first tap only starts it
+    await page.mouse.click(cx, cy);
+    expect((await tstate(page)).r).toBe(1);                                     // the next one turns it
+    const x0 = (await tstate(page)).x, cell = b.width / 14;
+    await page.mouse.move(cx, cy); await page.mouse.down();
+    await page.mouse.move(cx + cell * 2.5, cy);
+    await page.mouse.up();
+    s = await tstate(page);
+    expect(s.x).toBe(x0 + 2);
+    expect(s.r).toBe(1);                                                        // a drag does not also turn it
+  });
+
+  test("game over shows the score, can be logged, and the menu remembers the best", async ({ page }) => {
+    await open(page, "/index.html?game=tetris&seed=3");
+    await page.evaluate(() => window.Games._test.tetris({ over: true, running: false, score: 1234, lines: 12 }));
+    await expect(page.locator(".gres")).toContainText("จบเกม! ได้ 1234 คะแนน (12 แถว)");
+    await page.clock.runFor(100);
+    await page.getByRole("button", { name: /บันทึกเป็นกิจกรรมเติมพลัง/ }).click();
+    await nav(page, /บันทึก/).click();
+    await expect(page.locator("#entries")).toContainText("เทตริส");
+    await nav(page, /เกม/).click();
+    await page.getByRole("button", { name: /เมนู/ }).click();
+    await expect(page.locator(".gcard", { hasText: "เทตริส" })).toContainText("คะแนนสูงสุด 1234");
+  });
+
+  test("the board and every control fit above the menu bar on a phone", async ({ page }) => {
+    await open(page, "/index.html?game=tetris&seed=3");
+    const nv = await page.getByRole("navigation").boundingBox();
+    const hard = await page.getByRole("button", { name: /ตกลงเลย/ }).boundingBox();
+    expect(hard.y + hard.height).toBeLessThanOrEqual(nv.y);
+    await noSideScroll(page);
+  });
+});
+
+test.describe("dinosaur egg shooter", () => {
+  test("rules: honeycomb geometry, neighbours are mutual", async ({ page }) => {
+    await open(page);
+    const r = await logic(page, (L) => {
+      const g = L.eggEmpty(); let mutual = true;
+      g.forEach((row, r) => row.forEach((_, c) => L.eggNeighbors(r, c).forEach(([rr, cc]) => { if (!L.eggNeighbors(rr, cc).some(([a, b]) => a === r && b === c)) mutual = false; })));
+      return {
+        cols: [L.eggCols(0), L.eggCols(1)], rows: g.length, mutual,
+        p00: L.eggPos(0, 0), p08: L.eggPos(0, 8), p10: L.eggPos(1, 0), p70: L.eggPos(1, 7),
+        corner: L.eggNeighbors(0, 0).length, inner: L.eggNeighbors(5, 4).length, oddEnd: L.eggNeighbors(1, 7).length,
+      };
+    });
+    expect(r).toEqual({ cols: [9, 8], rows: 13, mutual: true, p00: { x: 15, y: 15 }, p08: { x: 255, y: 15 }, p10: { x: 30, y: 41 }, p70: { x: 240, y: 41 }, corner: 2, inner: 6, oddEnd: 5 });
+  });
+
+  test("rules: an egg snaps to the nearest empty cell that touches the board", async ({ page }) => {
+    await open(page);
+    const r = await logic(page, (L) => {
+      const g = L.eggEmpty(); g[0][4] = 2;
+      const below = L.eggPos(0, 4);
+      return { under: L.eggSnap(g, below.x + 3, below.y + 22), ceiling: L.eggSnap(L.eggEmpty(), 140, 15), floating: L.eggSnap(L.eggEmpty(), 140, 200).r };
+    });
+    expect(r.under).toEqual({ r: 1, c: 4 });
+    expect(r.ceiling).toEqual({ r: 0, c: 4 });
+    expect(r.floating).toBeLessThanOrEqual(7);                                  // it never snaps to a cell that touches nothing
+  });
+
+  test("rules: three of a colour pop, two do not, and what is cut off falls", async ({ page }) => {
+    await open(page);
+    const r = await logic(page, (L) => {
+      const a = L.eggEmpty(); [0, 1, 2].forEach((c) => (a[0][c] = 1));
+      const ra = L.eggResolve(a, 0, 2);
+      const b = L.eggEmpty(); [0, 1].forEach((c) => (b[0][c] = 1));
+      const rb = L.eggResolve(b, 0, 1);
+      const c = L.eggEmpty(); [0, 1, 2].forEach((x) => (c[0][x] = 1)); c[0][3] = 2; c[1][0] = 3; c[1][3] = 3;
+      const rc = L.eggResolve(c, 0, 2);
+      const d = L.eggEmpty(); d[0][4] = 1; d[1][3] = 1; d[1][4] = 1;
+      const rd = L.eggResolve(d, 1, 4);
+      return { a: [ra.popped.length, ra.fallen.length, L.eggLeft(a)], b: [rb.popped.length, L.eggLeft(b)], c: [rc.popped.length, rc.fallen, c[1][0], c[1][3], c[0][3]], d: [rd.popped.length, L.eggLeft(d)] };
+    });
+    expect(r).toEqual({ a: [3, 0, 0], b: [0, 2], c: [3, [[1, 0]], 0, 3, 2], d: [3, 0] });
+  });
+
+  test("rules: flying eggs bounce off the walls, stick to the ceiling and to other eggs, and the board can fill up", async ({ page }) => {
+    await open(page);
+    const r = await logic(page, (L) => {
+      const run = (s) => { for (let i = 0; i < 200 && s.shot; i++) L.eggStep(s, 33); return s; };
+      const mk = (grid, shot) => ({ grid, shot, score: 0, over: false, won: false, cur: 1, next: 1 });
+      const up = run(mk(L.eggEmpty(), { x: 135, y: 372, vx: 0, vy: -520, c: 3 }));
+      const bounce = mk(L.eggEmpty(), { x: 250, y: 300, vx: 300, vy: -10, c: 2 }); L.eggStep(bounce, 33);
+      const g1 = L.eggEmpty(); g1[0][4] = 1;
+      const hit = run(mk(g1, { x: 135, y: 372, vx: 0, vy: -520, c: 2 }));
+      const g2 = L.eggEmpty(); g2[0][4] = 1; g2[0][5] = 1;
+      const win = run(mk(g2, { x: 135, y: 372, vx: 0, vy: -520, c: 1 }));
+      const g3 = L.eggEmpty(); g3[10][0] = 1;
+      const full = run(mk(g3, { x: 15, y: 372, vx: 0, vy: -520, c: 2 }));
+      const fire = { grid: L.eggEmpty(), cur: 4, next: 5, ang: 0.5, shot: null, shots: 0, over: false, won: false }; fire.grid[0][0] = 4;
+      const first = L.eggFire(fire), again = L.eggFire(fire);
+      const only3 = L.eggEmpty(); only3[0][0] = 3; const picks = new Set(Array.from({ length: 20 }, () => L.eggPick(only3)));
+      const straight = L.eggPath({ ang: 0, grid: L.eggEmpty() }), wide = L.eggPath({ ang: 1.2, grid: L.eggEmpty() });
+      return {
+        top: [up.grid[0][4], L.eggLeft(up.grid), up.over], bounceLeft: [bounce.shot.vx < 0, bounce.shot.x <= 255],
+        under: [hit.grid[1][3] || hit.grid[1][4], L.eggLeft(hit.grid)], win: [win.won, win.score, L.eggLeft(win.grid)], full: [full.over, full.grid[11][0]],
+        fire: [first, again, fire.shots, fire.cur, fire.shot.vx > 0, fire.shot.vy < 0], picks: [...picks],
+        aim: [L.eggAim(135, 100), L.eggAim(270, 371), L.eggAim(0, 371) < 0], straight: [straight.length, straight[straight.length - 1][1] <= 15], wide: wide.length > 2,
+      };
+    });
+    expect(r).toEqual({
+      top: [3, 1, false], bounceLeft: [true, true], under: [2, 2], win: [true, 30, 0], full: [true, 2],
+      fire: [true, false, 1, 5, true, true], picks: [3], aim: [0, 1.3, true], straight: [2, true], wide: true,
+    });
+  });
+
+  test("playing to a win: aim with the buttons, fire, the eggs pop, it is logged", async ({ page }) => {
+    const errors = await open(page, "/index.html?game=egg&seed=3");
+    await page.evaluate(() => { const g = window.Games._logic.eggEmpty(); g[0][4] = 1; g[0][5] = 1; window.Games._test.egg({ grid: g, cur: 1, next: 1, ang: 0 }); });
+    await expect(page.locator("#tab-games .gpill")).toHaveText("คะแนน 0 · ยิง 0 · เหลือ 2 ฟอง");
+    const ang = () => page.evaluate(() => window.Games._test.get("egg").ang);
+    await page.getByRole("button", { name: "เล็งไปทางขวา" }).click();
+    expect(await ang()).toBeCloseTo(0.06, 5);
+    await page.getByRole("button", { name: "เล็งไปทางซ้าย" }).click();
+    await page.getByRole("button", { name: "เล็งไปทางซ้าย" }).click();
+    expect(await ang()).toBeCloseTo(-0.06, 5);
+    await page.keyboard.press("ArrowRight");
+    expect(await ang()).toBeCloseTo(0, 5);
+    await page.getByRole("button", { name: /ยิง!/ }).click();
+    await page.clock.runFor(2000);
+    await expect(page.locator(".gres")).toContainText("ฟักครบทุกฟองแล้ว");
+    await page.getByRole("button", { name: /บันทึกเป็นกิจกรรมเติมพลัง/ }).click();
+    await nav(page, /บันทึก/).click();
+    await expect(page.locator("#entries")).toContainText("ยิงไข่ไดโนเสาร์");
+    await nav(page, /เกม/).click();
+    await page.getByRole("button", { name: /เมนู/ }).click();
+    await expect(page.locator(".gcard", { hasText: "ยิงไข่ไดโนเสาร์" })).toContainText("ชนะ 1 ครั้ง");
+    expect(errors).toEqual([]);
+  });
+
+  test("drag to aim, let go to fire; a miss sticks to the board and the game goes on", async ({ page }) => {
+    await open(page, "/index.html?game=egg&seed=3");
+    await page.evaluate(() => { const g = window.Games._logic.eggEmpty(); g[0][0] = 1; window.Games._test.egg({ grid: g, cur: 2, next: 3, ang: 0 }); });
+    const st = () => page.evaluate(() => { const s = window.Games._test.get("egg"); return { ang: s.ang, shots: s.shots, flying: !!s.shot, eggs: window.Games._logic.eggLeft(s.grid), over: s.over, won: s.won }; });
+    const b = await page.locator("#eggc").boundingBox();
+    await page.mouse.move(b.x + b.width * 0.5, b.y + b.height * 0.9);
+    await page.mouse.down();
+    await page.mouse.move(b.x + b.width * 0.8, b.y + b.height * 0.4);
+    let s = await st();
+    expect(s.ang).toBeGreaterThan(0.3);                                         // aimed to the right
+    expect(s.shots).toBe(0);                                                    // nothing fired yet
+    await page.mouse.up();
+    s = await st();
+    expect([s.shots, s.flying]).toEqual([1, true]);                             // letting go fired it
+    await page.clock.runFor(3000);
+    s = await st();
+    expect([s.flying, s.eggs, s.over, s.won]).toEqual([false, 2, false, false]);
+    await expect(page.locator("#tab-games .gpill")).toContainText("ยิง 1 · เหลือ 2 ฟอง");
+  });
+
+  test("a board that fills up says so, and starting again gives a fresh board of five rows", async ({ page }) => {
+    await open(page, "/index.html?game=egg&seed=3");
+    await page.evaluate(() => { const g = window.Games._logic.eggEmpty(); g[10][0] = 1; window.Games._test.egg({ grid: g, cur: 2, next: 2, ang: 0 }); const s = window.Games._test.get("egg"); s.shot = { x: 15, y: 372, vx: 0, vy: -520, c: 2 }; });
+    await page.clock.runFor(1500);
+    await expect(page.locator(".gres")).toContainText("ไข่ลงมาถึงเส้นแล้ว");
+    await expect(page.getByRole("button", { name: /บันทึกเป็นกิจกรรมเติมพลัง/ })).toHaveCount(0);
+    await page.getByRole("button", { name: "เล่นอีกรอบ" }).click();
+    await expect(page.locator(".gres")).toHaveCount(0);
+    const rows = await page.evaluate(() => { const g = window.Games._test.get("egg").grid; return g.map((row) => row.some(Boolean)); });
+    expect(rows.slice(0, 5).every(Boolean)).toBe(true);
+    expect(rows.slice(5).some(Boolean)).toBe(false);
+  });
+
+  test("the board and its buttons fit above the menu bar on a phone", async ({ page }) => {
+    await open(page, "/index.html?game=egg&seed=3");
+    const nv = await page.getByRole("navigation").boundingBox();
+    const fire = await page.getByRole("button", { name: /ยิง!/ }).boundingBox();
+    expect(fire.y + fire.height).toBeLessThanOrEqual(nv.y);
+    await noSideScroll(page);
+  });
 });
