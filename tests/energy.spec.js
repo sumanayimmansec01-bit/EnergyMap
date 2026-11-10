@@ -98,7 +98,7 @@ test("a custom activity can be added, used and removed", async ({ page }) => {
   await page.getByRole("button", { name: /กิจกรรมใหม่/ }).click();
   await page.locator("#act-name").fill("เล่นกับแมว");
   await page.locator("#act-emoji").fill("🐱");
-  await page.locator("#act-fx").getByRole("button", { name: /เติมพลังมาก/ }).click();
+  await page.locator("#act-score").fill("2");
   await page.getByRole("button", { name: "เพิ่ม", exact: true }).click();
   await page.getByRole("button", { name: /เล่นกับแมว/ }).click();
   await page.getByRole("button", { name: "บันทึก", exact: true }).click();
@@ -272,4 +272,86 @@ test("zero totals read as plain 0, not +0 or −0", async ({ page }) => {
   await page.getByRole("navigation").getByRole("button", { name: /สรุป/ }).click();
   await expect(page.locator("#stats")).not.toContainText("−0");
   await expect(page.locator("#stats")).not.toContainText("+0");
+});
+
+test.describe("editing an activity's default level", () => {
+  const manage = (page) => page.getByRole("navigation").getByRole("button", { name: /จัดการ/ }).click();
+  const card = (page, name) => page.locator("#grid [data-act]", { hasText: name });
+
+  test("tap a row in Manage, change name, emoji and default level; the card and the log dialog follow", async ({ page }) => {
+    await open(page);
+    await expect(card(page, "เดิน/ออกกำลังกาย")).toContainText("+2");        // presets show their level
+    await manage(page);
+    await page.getByRole("button", { name: /^แก้ไข เดิน\/ออกกำลังกาย/ }).click();
+    await expect(page.locator("#act-title")).toHaveText("แก้ไขกิจกรรม");
+    await expect(page.locator("#act-score-val")).toHaveText("+2");
+    await page.locator("#act-name").fill("เดินขึ้นเขา");
+    await page.locator("#act-emoji").fill("⛰️");
+    await page.locator("#act-score").fill("5");
+    await page.getByRole("button", { name: "เพิ่มระดับเริ่มต้น" }).click();       // capped at +5
+    await expect(page.locator("#act-score-val")).toHaveText("+5");
+    await page.getByRole("button", { name: "ลดระดับเริ่มต้น" }).click();
+    await expect(page.locator("#act-score-val")).toHaveText("+4");
+    await page.getByRole("button", { name: "บันทึก", exact: true }).click();
+    await expect(page.locator("#actlist")).toContainText("เดินขึ้นเขา");
+    await expect(page.locator("#actlist")).not.toContainText("เดิน/ออกกำลังกาย");
+
+    await page.getByRole("navigation").getByRole("button", { name: /บันทึก/ }).click();
+    await expect(card(page, "เดินขึ้นเขา")).toContainText("+4");
+    await card(page, "เดินขึ้นเขา").click();
+    await expect(page.locator("#score-val")).toHaveText("+4");                  // starts at the new default
+    await page.getByRole("button", { name: "บันทึก", exact: true }).click();
+    await expect(page.locator("#today .big")).toHaveText("+4");
+    await page.reload();                                                       // saved on the device
+    await expect(card(page, "เดินขึ้นเขา")).toContainText("+4");
+  });
+
+  test("a default can be negative or zero, and zero looks neutral", async ({ page }) => {
+    await open(page);
+    await manage(page);
+    await page.getByRole("button", { name: /^แก้ไข ประชุมยาว/ }).click();
+    await page.locator("#act-score").fill("-5");
+    await page.getByRole("button", { name: "บันทึก", exact: true }).click();
+    await page.getByRole("button", { name: /^แก้ไข ฟังเพลง/ }).click();
+    await page.locator("#act-score").fill("0");
+    await page.getByRole("button", { name: "บันทึก", exact: true }).click();
+    await page.getByRole("navigation").getByRole("button", { name: /บันทึก/ }).click();
+    await expect(card(page, "ประชุมยาว")).toHaveClass(/\bd\b/);
+    await expect(card(page, "ประชุมยาว")).toContainText("−5");
+    await expect(card(page, "ฟังเพลง")).toHaveClass(/\bn\b/);
+    await card(page, "ฟังเพลง").click();
+    await expect(page.locator("#score-val")).toHaveText("0");
+  });
+
+  test("renaming does not touch entries already logged", async ({ page }) => {
+    await open(page);
+    await page.getByRole("button", { name: /ฟังเพลง/ }).first().click();
+    await page.getByRole("button", { name: "บันทึก", exact: true }).click();
+    await manage(page);
+    await page.getByRole("button", { name: /^แก้ไข ฟังเพลง/ }).click();
+    await page.locator("#act-name").fill("ฟังพอดแคสต์");
+    await page.getByRole("button", { name: "บันทึก", exact: true }).click();
+    await page.getByRole("navigation").getByRole("button", { name: /บันทึก/ }).click();
+    await expect(page.locator("#entries")).toContainText("ฟังเพลง");
+    await expect(card(page, "ฟังพอดแคสต์")).toBeVisible();
+  });
+
+  test("cancel leaves the activity unchanged; adding still works with a chosen level", async ({ page }) => {
+    await open(page);
+    await manage(page);
+    await page.getByRole("button", { name: /^แก้ไข งีบหลับ/ }).click();
+    await page.locator("#act-score").fill("-3");
+    await page.getByRole("button", { name: "ยกเลิก" }).click();
+    await expect(page.locator("#actlist")).toContainText("งีบหลับ");
+    await page.getByRole("button", { name: /^แก้ไข งีบหลับ/ }).click();
+    await expect(page.locator("#act-score-val")).toHaveText("+1");
+    await page.getByRole("button", { name: "ยกเลิก" }).click();
+    await page.getByRole("button", { name: /เพิ่มกิจกรรมใหม่/ }).click();
+    await expect(page.locator("#act-title")).toHaveText("กิจกรรมใหม่");
+    await page.locator("#act-name").fill("อาบน้ำสบาย ๆ");
+    await page.locator("#act-score").fill("3");
+    await page.getByRole("button", { name: "เพิ่ม", exact: true }).click();
+    await page.getByRole("navigation").getByRole("button", { name: /บันทึก/ }).click();
+    await expect(card(page, "อาบน้ำสบาย ๆ")).toContainText("+3");
+  });
 });

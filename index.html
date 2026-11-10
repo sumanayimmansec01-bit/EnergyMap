@@ -65,6 +65,8 @@
   .act { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 8px 10px; text-align: left;
     background: var(--surface); border: 1px solid var(--line); border-left-width: 5px; border-radius: 12px; }
   .act.b { border-left-color: var(--boost); } .act.d { border-left-color: var(--drain); }
+  .act.n { border-left-color: var(--muted); }
+  .rowbtn { display: flex; flex: 1; align-items: center; gap: 10px; min-height: 44px; padding: 0; background: none; border: 0; text-align: left; color: inherit; }
   .act.add { border-style: dashed; border-left-width: 1px; justify-content: center; color: var(--muted); }
   .act .em { font-size: 1.4rem; } .act .nm { font-size: .9rem; line-height: 1.25; }
   .sub { font-size: .75rem; font-weight: 700; }
@@ -150,6 +152,7 @@
   :root[data-skin="mario"] .act { border: 3px solid var(--line); border-left-width: 8px; border-radius: 12px; box-shadow: 0 3px 0 rgba(16,40,92,.3); }
   :root[data-skin="mario"] .act.b { border-left-color: var(--boost); }
   :root[data-skin="mario"] .act.d { border-left-color: var(--drain); }
+  :root[data-skin="mario"] .act.n { border-left-color: var(--muted); }
   :root[data-skin="mario"] .act.add { border-style: dashed; border-left-width: 3px; box-shadow: none; }
   :root[data-skin="mario"] .seg { background: #10285c; }
   :root[data-skin="mario"] .seg button { color: #e3ecff; }
@@ -284,7 +287,7 @@
     <div class="card sprout"><h2>🎨 ธีมสี</h2><div class="skins" id="skins" role="group" aria-label="เลือกธีม"></div></div>
     <div class="card">
       <h2>กิจกรรมของฉัน</h2>
-      <p class="muted" style="margin-top:0">แตะ ✕ เพื่อลบออกจากปุ่มลัด (ประวัติเดิมยังอยู่)</p>
+      <p class="muted" style="margin-top:0">แตะกิจกรรมเพื่อแก้ชื่อ อิโมจิ และระดับพลังงานเริ่มต้น · แตะ ✕ เพื่อลบออกจากปุ่มลัด (ประวัติเดิมยังอยู่)</p>
       <div id="actlist"></div>
       <button class="btn" id="new-act" style="margin-top:8px">＋ เพิ่มกิจกรรมใหม่</button>
     </div>
@@ -336,9 +339,10 @@
     <input type="text" id="act-name" maxlength="30" required autocomplete="off">
     <label for="act-emoji">อิโมจิ</label>
     <input type="text" id="act-emoji" maxlength="4" value="⭐" autocomplete="off">
-    <div class="muted" id="act-fx-label">โดยทั่วไปกิจกรรมนี้…</div>
-    <div class="fx" id="act-fx" role="group" aria-labelledby="act-fx-label"></div>
-    <div class="row"><button type="button" class="btn grow" id="act-cancel">ยกเลิก</button><button type="submit" class="btn primary grow">เพิ่ม</button></div>
+    <label for="act-score">ระดับพลังงานเริ่มต้น <b id="act-score-val"></b> <span class="muted" id="act-score-hint"></span></label>
+    <div class="row"><button type="button" class="icon-btn" id="as-minus" aria-label="ลดระดับเริ่มต้น">−</button><input type="range" id="act-score" min="-5" max="5" step="1" class="grow"><button type="button" class="icon-btn" id="as-plus" aria-label="เพิ่มระดับเริ่มต้น">＋</button></div>
+    <div class="muted" style="font-size:.78rem;margin-bottom:12px">เป็นคะแนนตั้งต้นทุกครั้งที่แตะกิจกรรมนี้ ตอนบันทึกปรับได้เสมอ</div>
+    <div class="row"><button type="button" class="btn grow" id="act-cancel">ยกเลิก</button><button type="submit" class="btn primary grow" id="act-ok">เพิ่ม</button></div>
   </form>
 </dialog>
 
@@ -346,7 +350,9 @@
 <script>
 "use strict";
 const KEY = "energy-map:v1";
-const FX = { "-2": ["▼▼", "เสียพลังมาก"], "-1": ["▼", "เสียพลัง"], "1": ["▲", "เติมพลัง"], "2": ["▲▲", "เติมพลังมาก"] };
+// label for an activity's default score (-5..+5); the original presets (±1, ±2) keep their old wording
+const fxLabel = (v) => v === 0 ? ["•", "เฉย ๆ"] : [(v > 0 ? "▲" : "▼").repeat(Math.min(3, Math.abs(v))), (v > 0 ? "เติมพลัง" : "เสียพลัง") + (Math.abs(v) === 1 ? "" : "มาก")];
+const fxCls = (v) => (v > 0 ? "b" : v < 0 ? "d" : "n");
 const PRESETS = [
   ["🚶", "เดิน/ออกกำลังกาย", 2], ["🌳", "ธรรมชาติ/แดด", 2], ["👨‍👩‍👧", "คุยกับคนที่รัก", 2], ["🎮", "งานอดิเรก", 2],
   ["😴", "งีบหลับ", 1], ["🎵", "ฟังเพลง", 1], ["🍎", "กินอาหารดี ๆ", 1], ["🧘", "นั่งสมาธิ/พัก", 1],
@@ -442,7 +448,7 @@ function renderLog() {
     <div class="row"><div class="big ${t.net >= 0 ? "pos" : "neg"}">${list.length ? sgn(t.net) : "–"}</div><div class="muted">${esc(state)}</div></div>
     <div class="meter" role="img" aria-label="เติมพลัง ${r1(t.b)} เสียพลัง ${r1(t.d)}">${tot ? `<i class="b" style="width:${(t.b / tot) * 100}%"></i><i class="d" style="width:${(t.d / tot) * 100}%"></i>` : ""}</div>
     <div class="row muted"><span class="pos">▲ เติม ${sgn(t.b)}</span><span class="grow"></span><span class="neg">▼ เสีย ${sgn(-t.d)}</span></div>`;
-  $("grid").innerHTML = db.acts.map((a) => `<button class="act ${a.fx > 0 ? "b" : "d"}" data-act="${esc(a.id)}"><span class="em">${esc(a.emoji)}</span><span><span class="nm">${esc(a.name)}</span><br><span class="sub ${a.fx > 0 ? "pos" : "neg"}">${FX[a.fx][0]} ${FX[a.fx][1]}</span></span></button>`).join("")
+  $("grid").innerHTML = db.acts.map((a) => `<button class="act ${fxCls(a.fx)}" data-act="${esc(a.id)}"><span class="em">${esc(a.emoji)}</span><span><span class="nm">${esc(a.name)}</span><br><span class="sub ${a.fx > 0 ? "pos" : a.fx < 0 ? "neg" : ""}">${fxLabel(a.fx)[0]} ${fxLabel(a.fx)[1]} ${sgn(a.fx)}</span></span></button>`).join("")
     + `<button class="act add" id="grid-add">＋ กิจกรรมใหม่</button>`;
   $("entries").innerHTML = list.length
     ? [...list].sort((x, y) => y.ts - x.ts).map((x) => `<div class="entry"><span class="em">${esc(x.emoji)}</span><div class="grow"><div>${esc(x.name)}</div><div class="muted">${fmtTime(x.ts)}${x.min ? ` · ${x.min} นาที` : ""}${x.note ? ` · ${esc(x.note)}` : ""}</div></div><span class="chip ${pts(x) > 0 ? "b" : pts(x) < 0 ? "d" : "n"}">${sgn(pts(x))}</span><button class="icon-btn" data-del="${esc(x.id)}" aria-label="ลบ ${esc(x.name)}">✕</button></div>`).join("")
@@ -491,7 +497,7 @@ function renderStats() {
 function renderMore() {
   const m = meta();
   $("lastbk").textContent = m.backup ? "สำรองล่าสุด: " + fmtDate(new Date(m.backup), { day: "numeric", month: "short", year: "numeric" }) : "ยังไม่เคยสำรองข้อมูล";
-  $("actlist").innerHTML = db.acts.map((a) => `<div class="entry"><span class="em">${esc(a.emoji)}</span><div class="grow">${esc(a.name)}</div><span class="chip ${a.fx > 0 ? "b" : "d"}">${FX[a.fx][0]}</span><button class="icon-btn" data-rm="${esc(a.id)}" aria-label="ลบกิจกรรม ${esc(a.name)}">✕</button></div>`).join("") || `<div class="muted">ไม่มีกิจกรรม</div>`;
+  $("actlist").innerHTML = db.acts.map((a) => `<div class="entry"><button class="rowbtn" data-edit="${esc(a.id)}" aria-label="แก้ไข ${esc(a.name)} (ระดับเริ่มต้น ${sgn(a.fx)})"><span class="em">${esc(a.emoji)}</span><span class="grow">${esc(a.name)}</span><span class="chip ${fxCls(a.fx)}">${fxLabel(a.fx)[0]} ${sgn(a.fx)}</span></button><button class="icon-btn" data-rm="${esc(a.id)}" aria-label="ลบกิจกรรม ${esc(a.name)}">✕</button></div>`).join("") || `<div class="muted">ไม่มีกิจกรรม</div>`;
 }
 
 /* ---------- tabs ---------- */
@@ -508,21 +514,14 @@ $("range").addEventListener("click", (e) => { const b = e.target.closest("button
 $("prev").onclick = () => { st.off--; renderStats(); };
 $("next").onclick = () => { if (st.off < 0) { st.off++; renderStats(); } };
 
-/* ---------- effect picker (shared) ---------- */
-function fxPicker(el, get, set) {
-  el.innerHTML = [-2, -1, 1, 2].map((v) => `<button type="button" class="${v > 0 ? "b" : "d"}" data-v="${v}">${FX[v][0]}<br>${FX[v][1]}</button>`).join("");
-  const paint = () => el.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.v === get())));
-  el.onclick = (e) => { const b = e.target.closest("button"); if (b) { set(+b.dataset.v); paint(); } };
-  paint();
-}
-
 /* ---------- log dialog ---------- */
 let cur = null;
 const HINT = ["เฉย ๆ", "นิดหน่อย", "พอสมควร", "ค่อนข้างมาก", "มาก", "มากที่สุด"];
+const scoreHint = (v) => (v === 0 ? "· เฉย ๆ" : `· ${v > 0 ? "เติมพลัง" : "เสียพลัง"}${HINT[Math.abs(v)]}`);
 function paintScore() {
   const v = +$("score").value;
   $("score-val").textContent = sgn(v);
-  $("score-hint").textContent = v === 0 ? "· เฉย ๆ" : `· ${v > 0 ? "เติมพลัง" : "เสียพลัง"}${HINT[Math.abs(v)]}`;
+  $("score-hint").textContent = scoreHint(v);
 }
 $("score").oninput = paintScore;
 $("sc-minus").onclick = () => { $("score").value = Math.max(-5, +$("score").value - 1); paintScore(); };
@@ -547,15 +546,25 @@ $("log-form").addEventListener("submit", () => {
 $("log-cancel").onclick = () => $("log-dlg").close();
 
 /* ---------- new activity dialog ---------- */
-let newFx = 1;
-function openNew() {
-  newFx = 1; $("act-name").value = ""; $("act-emoji").value = "⭐";
-  fxPicker($("act-fx"), () => newFx, (v) => (newFx = v));
+let editing = null;
+function paintActScore() { const v = +$("act-score").value; $("act-score-val").textContent = sgn(v); $("act-score-hint").textContent = scoreHint(v); }
+$("act-score").oninput = paintActScore;
+$("as-minus").onclick = () => { $("act-score").value = Math.max(-5, +$("act-score").value - 1); paintActScore(); };
+$("as-plus").onclick = () => { $("act-score").value = Math.min(5, +$("act-score").value + 1); paintActScore(); };
+function openAct(a) {
+  editing = a || null;
+  $("act-title").textContent = a ? "แก้ไขกิจกรรม" : "กิจกรรมใหม่";
+  $("act-ok").textContent = a ? "บันทึก" : "เพิ่ม";
+  $("act-name").value = a ? a.name : ""; $("act-emoji").value = a ? a.emoji : "⭐";
+  $("act-score").value = a ? a.fx : 1; paintActScore();
   $("act-dlg").showModal();
 }
+const openNew = () => openAct(null);
 $("act-form").addEventListener("submit", () => {
   const name = $("act-name").value.trim(); if (!name) return;
-  db.acts.push({ id: uid(), name, emoji: $("act-emoji").value.trim() || "⭐", fx: newFx });
+  const emoji = $("act-emoji").value.trim() || "⭐", fx = +$("act-score").value;
+  if (editing) Object.assign(editing, { name, emoji, fx }); // past entries keep the name they were logged under
+  else db.acts.push({ id: uid(), name, emoji, fx });
   save(); renderLog(); renderMore();
 });
 $("act-cancel").onclick = () => $("act-dlg").close();
@@ -563,8 +572,9 @@ $("new-act").onclick = openNew;
 
 /* ---------- delegated clicks ---------- */
 document.addEventListener("click", (e) => {
-  const t = e.target.closest("[data-act],[data-del],[data-rm],#grid-add"); if (!t) return;
+  const t = e.target.closest("[data-act],[data-del],[data-rm],[data-edit],#grid-add"); if (!t) return;
   if (t.id === "grid-add") return openNew();
+  if (t.dataset.edit) return openAct(db.acts.find((a) => a.id === t.dataset.edit));
   if (t.dataset.act) return openLog(db.acts.find((a) => a.id === t.dataset.act));
   if (t.dataset.del) { db.entries = db.entries.filter((x) => x.id !== t.dataset.del); save(); return renderLog(); }
   if (t.dataset.rm) { db.acts = db.acts.filter((a) => a.id !== t.dataset.rm); save(); renderMore(); }
